@@ -25,4 +25,55 @@ app.get('/', (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+const { sequelize, User, DoctorProfile } = require('./models');
+const bcrypt = require('bcrypt');
+
+app.listen(PORT, async () => {
+  console.log(`Server running on port ${PORT}`);
+  try {
+    await sequelize.authenticate();
+    console.log('Database connected successfully.');
+    await sequelize.sync();
+
+    // Ensure default admin exists
+    const [adminUser, adminCreated] = await User.findOrCreate({
+      where: { email: 'admin@teleradiology.com' },
+      defaults: {
+        password: await bcrypt.hash('admin123', 10),
+        role: 'admin',
+        status: 'approved'
+      }
+    });
+    if (adminCreated) {
+      console.log('Default admin seeded: admin@teleradiology.com / admin123');
+    }
+
+    // Ensure default doctor exists
+    const [docUser, docCreated] = await User.findOrCreate({
+      where: { email: 'doctor@teleradiology.com' },
+      defaults: {
+        password: await bcrypt.hash('doctor123', 10),
+        role: 'doctor',
+        status: 'approved'
+      }
+    });
+    if (docCreated) {
+      await DoctorProfile.create({
+        userId: docUser.id,
+        name: 'Dr. Sharma',
+        age: 38,
+        gender: 'Male',
+        panCard: 'ABCDE1234F',
+        aadhaarCard: '123456789012',
+        degreeFileUrl: 'uploads/sample_degree.pdf',
+        address: 'New Delhi',
+        phoneNumber: '9876543210',
+        reportFee: 500
+      });
+      console.log('Default doctor seeded: doctor@teleradiology.com / doctor123');
+    }
+  } catch (err) {
+    console.error('Database connection / sync error:', err.message);
+  }
+});
