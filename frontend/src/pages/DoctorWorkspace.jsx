@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import { API_BASE_URL } from '../config';
 import * as cornerstone from 'cornerstone-core';
 import * as cornerstoneMath from 'cornerstone-math';
 import * as cornerstoneTools from 'cornerstone-tools';
@@ -139,7 +140,7 @@ export default function DoctorWorkspace() {
     if (viewerRef.current) cornerstone.enable(viewerRef.current);
 
     try {
-      const imageIds = slices.map(s => `wadouri:http://localhost:8000/api/cases/${id}/dicom-stream?slice=${encodeURIComponent(s)}&token=${token}`);
+      const imageIds = slices.map(s => `wadouri:${API_BASE_URL}/api/cases/${id}/dicom-stream?slice=${encodeURIComponent(s)}&token=${token}`);
       
       setAllImageIds(imageIds);
       setTotalSlices(imageIds.length);
@@ -327,7 +328,7 @@ export default function DoctorWorkspace() {
               </svg>
               <h2 className="text-2xl font-bold text-gray-800 mb-2">Non-DICOM File Attached</h2>
               <p className="text-gray-600 mb-6 max-w-md mx-auto">This study contains a custom file or nested folder instead of standard DICOM (.dcm) images. Please download it to view locally on your computer.</p>
-              <a href={`http://localhost:8000/api/cases/${id}/dicom-stream?token=${localStorage.getItem('token')}`} download className="inline-block bg-indigo-600 text-white font-bold py-3 px-8 rounded hover:bg-indigo-700 shadow-md transition-colors">
+              <a href={`${API_BASE_URL}/api/cases/${id}/dicom-stream?token=${localStorage.getItem('token')}`} download className="inline-block bg-indigo-600 text-white font-bold py-3 px-8 rounded hover:bg-indigo-700 shadow-md transition-colors">
                 Download File
               </a>
             </div>

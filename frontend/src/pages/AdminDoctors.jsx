@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 import { Link, useNavigate } from 'react-router-dom';
 import AdminNav from '../components/AdminNav';
 
@@ -270,7 +271,7 @@ export default function AdminDoctors() {
                             <button
                               type="button"
                               onClick={() => setSelectedDegree({
-                                url: `http://localhost:8000/${degreeFile.replace(/\\/g, '/')}`,
+                                url: `${API_BASE_URL}/${degreeFile.replace(/\\/g, '/')}`,
                                 doctorName: docName
                               })}
                               className="inline-flex items-center text-xs text-indigo-600 hover:text-indigo-800 font-semibold bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded border border-indigo-100 transition shadow-sm cursor-pointer"

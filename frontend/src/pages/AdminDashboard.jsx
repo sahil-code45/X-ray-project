@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 import { Link, useNavigate } from 'react-router-dom';
 import AdminNav from '../components/AdminNav';
 
@@ -123,7 +124,7 @@ export default function AdminDashboard() {
                         <button
                           type="button"
                           onClick={() => setSelectedDegree({
-                            url: `http://localhost:8000/${u.doctorProfile.degreeFileUrl.replace(/\\/g, '/')}`,
+                            url: `${API_BASE_URL}/${u.doctorProfile.degreeFileUrl.replace(/\\/g, '/')}`,
                             doctorName: u.doctorProfile?.name || u.email
                           })}
                           className="mt-1 inline-flex items-center text-xs text-indigo-600 hover:text-indigo-900 font-semibold bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg border border-indigo-200 transition shadow-sm cursor-pointer"
