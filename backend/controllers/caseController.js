@@ -1,0 +1,116 @@
+const { XrayCase, sequelize } = require('../models');
+
+const AdmZip = require('adm-zip');
+const fs = require('fs');
+const path = require('path');
+
+exports.uploadCase = async (req, res) => {
+    try {
+        const { patientId, patientName, patientAge, patientGender, studyNotes } = req.body;
+        let dicomFileUrl = req.file ? req.file.path : null;
+
+        if (!dicomFileUrl) {
+            return res.status(400).json({ message: 'DICOM/ZIP file is required' });
+        }
+
+        let status = 'uploaded';
+        let extractedDir = null;
+
+        // If it's a zip file, extract it
+        if (dicomFileUrl.toLowerCase().endsWith('.zip')) {
+            const zip = new AdmZip(dicomFileUrl);
+            extractedDir = path.join(__dirname, '..', 'uploads', `extracted_${Date.now()}`);
+            zip.extractAllTo(extractedDir, true);
+            dicomFileUrl = extractedDir; // Save directory path instead of zip path
+        }
+
+        const newCase = await XrayCase.create({
+            patientId: patientId ? patientId.trim() : null,
+            patientName,
+            patientAge,
+            patientGender,
+            studyNotes,
+            dicomFileUrl,
+            status
+        });
+
+        res.status(201).json({ message: 'Case uploaded successfully', case: newCase });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+exports.getAvailableCases = async (req, res) => {
+    try {
+        const doctorId = req.user.id;
+        
+        const availableCases = await XrayCase.findAll({
+            where: { status: 'uploaded' },
+            order: [['createdAt', 'DESC']]
+        });
+        
+        const myCases = await XrayCase.findAll({
+            where: { status: 'in_progress', assignedDoctorId: doctorId },
+            order: [['updatedAt', 'DESC']]
+        });
+
+        const { Report } = require('../models');
+        const completedCases = await XrayCase.findAll({
+            where: { status: 'completed', assignedDoctorId: doctorId },
+            include: [{ model: Report, as: 'report' }],
+            order: [['updatedAt', 'DESC']]
+        });
+
+        const totalCompleted = completedCases.length;
+
+        res.json({ availableCases, myCases, completedCases, totalCompleted });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+exports.getCaseById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { Report } = require('../models');
+        const xrayCase = await XrayCase.findByPk(id, {
+            include: [{ model: Report, as: 'report' }]
+        });
+        if (!xrayCase) return res.status(404).json({ message: 'Case not found' });
+        res.json(xrayCase);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+exports.claimCase = async (req, res) => {
+    const t = await sequelize.transaction();
+    try {
+        const { id } = req.params;
+        const doctorId = req.user.id; // From verifyToken
+
+        // Atomic row-level lock
+        const xrayCase = await XrayCase.findOne({
+            where: { id, status: 'uploaded' },
+            transaction: t,
+            lock: t.LOCK.UPDATE
+        });
+
+        if (!xrayCase) {
+            await t.rollback();
+            return res.status(409).json({ message: 'Case already claimed or not found' }); // Return HTTP 409 Conflict
+        }
+
+        xrayCase.assignedDoctorId = doctorId;
+        xrayCase.status = 'in_progress';
+        xrayCase.lockedAt = new Date();
+        
+        await xrayCase.save({ transaction: t });
+        await t.commit();
+
+        res.json({ message: 'Case claimed successfully', caseId: xrayCase.id });
+    } catch (error) {
+        await t.rollback();
+        res.status(500).json({ error: error.message });
+    }
+};
