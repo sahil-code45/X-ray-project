@@ -31,10 +31,49 @@ exports.uploadCase = async (req, res) => {
             patientGender,
             studyNotes,
             dicomFileUrl,
-            status
+            status,
+            centerId: req.user?.id || null
         });
 
         res.status(201).json({ message: 'Case uploaded successfully', case: newCase });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+exports.getCenterCases = async (req, res) => {
+    try {
+        const { Op } = require('sequelize');
+        const { Report, User, DoctorProfile } = require('../models');
+        const centerId = req.user.id;
+        const role = req.user.role;
+
+        const whereClause = role === 'admin' 
+            ? {} 
+            : {
+                [Op.or]: [
+                    { centerId: centerId },
+                    { centerId: null }
+                ]
+            };
+
+        const cases = await XrayCase.findAll({
+            where: whereClause,
+            include: [
+                {
+                    model: User,
+                    as: 'doctor',
+                    attributes: ['id', 'email'],
+                    include: [{ model: DoctorProfile, as: 'doctorProfile', attributes: ['name', 'phoneNumber'] }]
+                },
+                {
+                    model: Report,
+                    as: 'report'
+                }
+            ],
+            order: [['createdAt', 'DESC']]
+        });
+        res.json(cases);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

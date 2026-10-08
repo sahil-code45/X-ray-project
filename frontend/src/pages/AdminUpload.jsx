@@ -101,16 +101,47 @@ export default function AdminUpload() {
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
           <div>
-            <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Upload Data</h1>
+            <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Center Cases & Uploads</h1>
             <p className="mt-2 text-sm text-gray-500">
-              Upload DICOM studies and patient information into the platform for radiologist diagnosis.
+              Overview of patient cases uploaded across diagnostic centers, with direct manual entry override.
             </p>
           </div>
+          <div className="flex items-center gap-3">
+            <Link
+              to="/center"
+              className="inline-flex items-center text-sm font-semibold text-blue-700 bg-blue-100 hover:bg-blue-200 px-4 py-2 rounded-lg transition-colors shadow-sm"
+            >
+              Open Center Panel &rarr;
+            </Link>
+            <Link
+              to="/admin"
+              className="inline-flex items-center text-sm font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-4 py-2 rounded-lg transition-colors shadow-sm"
+            >
+              Go to Overview &rarr;
+            </Link>
+          </div>
+        </div>
+
+        {/* Center Portal Delegation Notice */}
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-blue-600 text-white rounded-lg flex-shrink-0">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="font-bold text-gray-900 text-sm">Diagnostic Center Case Filling Portal Active</h3>
+              <p className="text-xs text-gray-600 mt-0.5">
+                Patient demographics, clinical indications, and DICOM uploads are now primarily submitted by Centers via their dedicated portal.
+              </p>
+            </div>
+          </div>
           <Link
-            to="/admin"
-            className="inline-flex items-center text-sm font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-4 py-2 rounded-lg transition-colors shadow-sm"
+            to="/center"
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs rounded-lg shadow transition whitespace-nowrap"
           >
-            Go to Overview &rarr;
+            Launch Center Portal &rarr;
           </Link>
         </div>
 

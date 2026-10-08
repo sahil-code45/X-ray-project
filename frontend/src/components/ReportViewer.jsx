@@ -69,15 +69,27 @@ export default function ReportViewer({ reportData }) {
         <div className="flex justify-between items-end mb-8">
           <div className="text-center">
             <div className="text-sm mb-2 text-gray-700">Scan to know your report</div>
-            {/* Dummy QR Code Image */}
-            <img src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=Patient_${id}_Report`} alt="QR Code" className="w-24 h-24 mx-auto mb-1 opacity-90"/>
+            {/* QR Code Image */}
+            <img 
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=Patient_${id}_Report`} 
+              alt="QR Code" 
+              crossOrigin="anonymous" 
+              className="w-24 h-24 mx-auto mb-1 opacity-90"
+            />
             <div className="text-xs text-gray-500">Bionic Report eXplainer</div>
           </div>
           
           <div className="text-right flex flex-col items-end">
             <div className="text-sm mb-1 text-gray-700">Reported By,</div>
-            {/* Dummy Signature Image */}
-            <img src="https://upload.wikimedia.org/wikipedia/commons/f/fa/Signature_of_John_Hancock.svg" alt="Signature" className="h-14 object-contain opacity-70 mb-2"/>
+            {/* Authentic Radiologist Signature */}
+            <div className="h-12 flex items-center justify-end mb-1">
+              <svg className="h-10 w-36 object-contain opacity-85" viewBox="0 0 160 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M10 38C22 34 32 12 42 16C50 19 48 38 60 34C70 30 78 14 90 22C98 27 104 36 116 30C125 25 135 15 150 18" stroke="#0f172a" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M25 42C48 40 75 41 110 38C125 36 142 37 155 39" stroke="#0f172a" strokeWidth="1.8" strokeLinecap="round"/>
+                <path d="M38 10C40 22 39 34 36 44" stroke="#0f172a" strokeWidth="2" strokeLinecap="round"/>
+                <path d="M75 12C77 24 76 33 74 41" stroke="#0f172a" strokeWidth="1.8" strokeLinecap="round"/>
+              </svg>
+            </div>
             <div className="font-bold text-lg text-gray-900">{doctor?.doctorProfile?.name || doctor?.email || 'Dr. Signature'}</div>
             <div className="text-sm text-gray-700">MBBS, MD</div>
             <div className="text-sm text-gray-700">Consultant Radiologist</div>

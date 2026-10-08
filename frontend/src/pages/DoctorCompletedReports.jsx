@@ -2,15 +2,43 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import ReportViewer from '../components/ReportViewer';
+import { downloadReportPdf, openReportPdfInNewTab } from '../utils/downloadPdf';
 
 export default function DoctorCompletedReports() {
   const [completedCases, setCompletedCases] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
   const [selectedReport, setSelectedReport] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 8;
   const navigate = useNavigate();
+
+  const handleDownloadPdf = async () => {
+    if (!selectedReport) return;
+    try {
+      setDownloading(true);
+      await downloadReportPdf(selectedReport);
+    } catch (err) {
+      console.error('Download PDF error:', err);
+      window.print();
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const handleOpenPdf = async () => {
+    if (!selectedReport) return;
+    try {
+      setDownloading(true);
+      await openReportPdfInNewTab(selectedReport);
+    } catch (err) {
+      console.error('Open PDF error:', err);
+      window.print();
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const fetchCompletedReports = async () => {
     try {
@@ -333,14 +361,38 @@ export default function DoctorCompletedReports() {
 
               <div className="flex items-center gap-3">
                 <button
-                  onClick={() => window.print()}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg font-semibold text-sm shadow transition"
+                  onClick={handleDownloadPdf}
+                  disabled={downloading}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-semibold text-sm shadow transition flex items-center gap-2 disabled:opacity-50 cursor-pointer"
                 >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  {downloading ? 'Processing...' : 'Download PDF'}
+                </button>
+                <button
+                  onClick={handleOpenPdf}
+                  disabled={downloading}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-semibold text-sm shadow transition flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+                  title="Open PDF directly in browser"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                  Open in Browser
+                </button>
+                <button
+                  onClick={() => window.print()}
+                  className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg font-semibold text-sm shadow transition flex items-center gap-2 cursor-pointer"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                  </svg>
                   Print Report
                 </button>
                 <button
                   onClick={() => setSelectedReport(null)}
-                  className="bg-gray-800 hover:bg-gray-700 text-white px-5 py-2 rounded-lg font-semibold text-sm shadow transition"
+                  className="bg-gray-800 hover:bg-gray-700 text-white px-5 py-2 rounded-lg font-semibold text-sm shadow transition cursor-pointer"
                 >
                   Close
                 </button>

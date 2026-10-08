@@ -8,8 +8,9 @@ const upload = require('../middlewares/upload');
 // All routes require authentication
 router.use(verifyToken);
 
-// Admin Routes for uploading cases
-router.post('/upload', verifyRole('admin'), upload.single('dicomFile'), caseController.uploadCase);
+// Center & Admin Routes for uploading and tracking cases
+router.post('/upload', verifyRole('admin', 'center'), upload.single('dicomFile'), caseController.uploadCase);
+router.get('/center/cases', verifyRole('admin', 'center'), caseController.getCenterCases);
 
 // Doctor Routes
 router.get('/available', verifyRole('doctor'), caseController.getAvailableCases);

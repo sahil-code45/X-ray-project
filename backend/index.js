@@ -73,6 +73,27 @@ app.listen(PORT, async () => {
       });
       console.log('Default doctor seeded: doctor@teleradiology.com / doctor123');
     }
+
+    // Ensure database columns & enum for center
+    try {
+      await sequelize.query(`ALTER TYPE "enum_Users_role" ADD VALUE IF NOT EXISTS 'center';`);
+    } catch (e) {}
+    try {
+      await sequelize.query(`ALTER TABLE "XrayCases" ADD COLUMN IF NOT EXISTS "centerId" INTEGER;`);
+    } catch (e) {}
+
+    // Ensure default Diagnostic Center exists
+    const [centerUser, centerCreated] = await User.findOrCreate({
+      where: { email: 'center@teleradiology.com' },
+      defaults: {
+        password: await bcrypt.hash('center123', 10),
+        role: 'center',
+        status: 'approved'
+      }
+    });
+    if (centerCreated) {
+      console.log('Default center seeded: center@teleradiology.com / center123');
+    }
   } catch (err) {
     console.error('Database connection / sync error:', err.message);
   }

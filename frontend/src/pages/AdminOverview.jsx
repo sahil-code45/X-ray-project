@@ -1,20 +1,48 @@
 import React, { useEffect, useState } from 'react';
 import ReportViewer from '../components/ReportViewer';
+import { downloadReportPdf, openReportPdfInNewTab } from '../utils/downloadPdf';
 import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
 import AdminNav from '../components/AdminNav';
 
 export default function AdminOverview() {
   const [stats, setStats] = useState({
-    totalDoctors: 0, approvedDoctors: 0, pendingDoctors: 0, pendingCases: 0, completedCases: 0, totalPaid: 0, pendingDues: 0
+    totalDoctors: 0, approvedDoctors: 0, pendingDoctors: 0, totalCenterCases: 0, pendingCases: 0, completedCases: 0, totalPaid: 0, pendingDues: 0
   });
   const [allCases, setAllCases] = useState([]);
   const [selectedReport, setSelectedReport] = useState(null);
+  const [downloading, setDownloading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 10;
   const navigate = useNavigate();
+
+  const handleDownloadPdf = async () => {
+    if (!selectedReport) return;
+    try {
+      setDownloading(true);
+      await downloadReportPdf(selectedReport);
+    } catch (err) {
+      console.error('Download PDF error:', err);
+      window.print();
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const handleOpenPdf = async () => {
+    if (!selectedReport) return;
+    try {
+      setDownloading(true);
+      await openReportPdfInNewTab(selectedReport);
+    } catch (err) {
+      console.error('Open PDF error:', err);
+      window.print();
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   useEffect(() => {
     fetchStats();
@@ -59,7 +87,7 @@ export default function AdminOverview() {
       <AdminNav />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full space-y-8">
-        {/* Header & Quick Action */}
+        {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
           <div>
             <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Overview & Analytics</h1>
@@ -67,15 +95,6 @@ export default function AdminOverview() {
               Real-time platform statistics, case statuses, and clinical reports summary.
             </p>
           </div>
-          <Link
-            to="/admin-upload"
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg shadow-md transition-all text-sm"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-            </svg>
-            Upload New Case
-          </Link>
         </div>
 
         {/* Alert Banner for Pending Doctors */}
@@ -109,7 +128,7 @@ export default function AdminOverview() {
         {/* Statistics Cards */}
         <div>
           <h2 className="text-lg font-bold text-gray-800 mb-4 tracking-tight">Platform Metrics</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4">
             {/* Approved Doctors Card */}
             <Link to="/admin-doctors" className="bg-white rounded-xl shadow-sm border border-gray-100 hover:border-emerald-300 p-5 flex flex-col justify-between transition-all hover:shadow-md group">
               <div>
@@ -152,6 +171,27 @@ export default function AdminOverview() {
                 <span className="text-amber-600 group-hover:translate-x-0.5 transition">&rarr;</span>
               </p>
             </Link>
+
+            {/* Center Submissions Card */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 hover:border-purple-300 p-5 flex flex-col justify-between transition-all hover:shadow-md">
+              <div>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold uppercase tracking-wider text-purple-700">Center Submissions</p>
+                  <span className="p-2 bg-purple-50 text-purple-600 rounded-lg">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                  </span>
+                </div>
+                <div className="flex items-baseline gap-2 mt-3">
+                  <p className="text-3xl font-extrabold text-purple-600">
+                    {stats.totalCenterCases !== undefined && stats.totalCenterCases !== null ? stats.totalCenterCases : (allCases?.length || 0)}
+                  </p>
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 bg-purple-100 text-purple-800 rounded-md">Centers</span>
+                </div>
+              </div>
+              <p className="text-[11px] text-gray-400 font-medium mt-3">Total patient cases</p>
+            </div>
 
             {/* Pending Reports Card */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 flex flex-col justify-between">
@@ -385,16 +425,40 @@ export default function AdminOverview() {
                 <ReportViewer reportData={selectedReport} />
               </div>
               
-              <div className="bg-gray-200 px-6 py-4 border-t flex justify-end">
+              <div className="bg-gray-200 px-6 py-4 border-t flex justify-end items-center gap-3">
+                <button 
+                  onClick={handleDownloadPdf}
+                  disabled={downloading}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-semibold shadow transition flex items-center gap-2 text-sm disabled:opacity-50 cursor-pointer"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  {downloading ? 'Processing...' : 'Download PDF'}
+                </button>
+                <button 
+                  onClick={handleOpenPdf}
+                  disabled={downloading}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-semibold shadow transition flex items-center gap-2 text-sm disabled:opacity-50 cursor-pointer"
+                  title="Open PDF directly in browser"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                  Open in Browser
+                </button>
                 <button 
                   onClick={() => {
                     window.print();
                   }}
-                  className="bg-indigo-600 text-white px-6 py-2 rounded hover:bg-indigo-700 font-semibold shadow mr-4"
+                  className="bg-gray-700 text-white px-4 py-2 rounded-lg hover:bg-gray-600 font-semibold shadow transition flex items-center gap-2 text-sm cursor-pointer"
                 >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                  </svg>
                   Print Report
                 </button>
-                <button onClick={() => setSelectedReport(null)} className="bg-gray-800 text-white px-6 py-2 rounded hover:bg-gray-700 font-semibold shadow">Close</button>
+                <button onClick={() => setSelectedReport(null)} className="bg-gray-800 text-white px-4 py-2 rounded-lg hover:bg-gray-700 font-semibold shadow transition text-sm cursor-pointer">Close</button>
               </div>
             </div>
           </div>

@@ -48,6 +48,9 @@ exports.getAdminStats = async (req, res) => {
         const approvedDoctors = await User.count({ where: { role: 'doctor', status: 'approved' } });
         const pendingDoctors = await User.count({ where: { role: 'doctor', status: 'pending' } });
         
+        // Total patient cases submitted by diagnostic centers
+        const totalCenterCases = await XrayCase.count();
+
         // Count all cases pending doctor diagnosis/completion ('uploaded' open pool or 'in_progress')
         const pendingCases = await XrayCase.count({ 
             where: { 
@@ -64,6 +67,7 @@ exports.getAdminStats = async (req, res) => {
             totalDoctors: approvedDoctors,
             approvedDoctors,
             pendingDoctors,
+            totalCenterCases,
             pendingCases,
             completedCases,
             totalPaid,

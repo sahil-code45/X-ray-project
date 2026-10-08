@@ -8,6 +8,8 @@ import AdminDoctorPayoutDetails from './pages/AdminDoctorPayoutDetails';
 import AdminOverview from './pages/AdminOverview';
 import AdminUpload from './pages/AdminUpload';
 import AdminDoctors from './pages/AdminDoctors';
+import CenterUpload from './pages/CenterUpload';
+import CenterCases from './pages/CenterCases';
 import DoctorDashboard from './pages/DoctorDashboard';
 import DoctorOpenPool from './pages/DoctorOpenPool';
 import DoctorCompletedReports from './pages/DoctorCompletedReports';
@@ -25,6 +27,11 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register/doctor" element={<RegisterDoctor />} />
         
+        {/* Diagnostic Center Routes wrapped in Layout */}
+        <Route path="/center" element={<Layout role="center"><CenterUpload /></Layout>} />
+        <Route path="/center/upload" element={<Layout role="center"><CenterUpload /></Layout>} />
+        <Route path="/center/cases" element={<Layout role="center"><CenterCases /></Layout>} />
+
         {/* Admin Routes wrapped in Layout */}
         <Route path="/admin" element={<Layout role="admin"><AdminOverview /></Layout>} />
         <Route path="/admin-upload" element={<Layout role="admin"><AdminUpload /></Layout>} />
