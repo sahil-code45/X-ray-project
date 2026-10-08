@@ -6,6 +6,7 @@ import AdminNav from '../components/AdminNav';
 
 export default function AdminDoctors() {
   const [doctors, setDoctors] = useState([]);
+  const [pendingCount, setPendingCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -28,10 +29,12 @@ export default function AdminDoctors() {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.get('http://localhost:8000/api/admin/approved-users', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setDoctors(res.data);
+      const [approvedRes, pendingRes] = await Promise.all([
+        axios.get('http://localhost:8000/api/admin/approved-users', { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get('http://localhost:8000/api/admin/pending-users', { headers: { Authorization: `Bearer ${token}` } })
+      ]);
+      setDoctors(approvedRes.data);
+      setPendingCount(pendingRes.data?.length || 0);
     } catch (error) {
       if (error.response?.status === 401 || error.response?.status === 403) {
         navigate('/login');
@@ -104,16 +107,26 @@ export default function AdminDoctors() {
             </p>
           </div>
 
-          <div className="flex items-center space-x-3">
-            <div className="bg-white border border-gray-200 text-gray-800 px-5 py-2.5 rounded-xl shadow-sm text-center">
-              <span className="block text-xs uppercase tracking-wider text-gray-500 font-semibold">Total Doctors</span>
-              <span className="font-extrabold text-2xl text-indigo-600">{doctors.length}</span>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="bg-white border border-emerald-200 text-gray-800 px-5 py-2.5 rounded-xl shadow-sm text-center">
+              <span className="block text-xs uppercase tracking-wider text-emerald-700 font-bold">Approved Doctors</span>
+              <span className="font-extrabold text-2xl text-emerald-600">{doctors.length}</span>
             </div>
             <Link
               to="/admin-approvals"
-              className="inline-flex items-center text-sm font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-4 py-2.5 rounded-xl shadow-sm border border-indigo-100 transition"
+              className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl shadow-sm border transition text-center ${
+                pendingCount > 0 
+                  ? 'bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-200 font-bold' 
+                  : 'bg-white hover:bg-gray-50 text-gray-600 border-gray-200 font-medium'
+              }`}
             >
-              Pending Approvals &rarr;
+              <div>
+                <span className="block text-xs uppercase tracking-wider text-amber-700 font-semibold">Pending Approvals</span>
+                <span className="font-extrabold text-xl text-amber-900 leading-none">{pendingCount}</span>
+              </div>
+              {pendingCount > 0 && (
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse ml-1"></span>
+              )}
             </Link>
           </div>
         </div>

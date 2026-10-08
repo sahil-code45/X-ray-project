@@ -71,15 +71,28 @@ export default function AdminDashboard() {
       <AdminNav />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-          <div className="flex justify-between items-end mb-8">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-8">
             <div>
-            <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Pending KYC Approvals</h1>
-            <p className="mt-2 text-sm text-gray-500">Review and verify doctor profiles before granting platform access.</p>
+              <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Doctor KYC Approvals</h1>
+              <p className="mt-2 text-sm text-gray-500">Review and verify doctor profiles before granting platform access.</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="bg-amber-50 border border-amber-200 text-amber-900 px-4 py-2.5 rounded-xl shadow-sm flex items-center gap-2.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
+                <div>
+                  <span className="block text-[10px] uppercase font-bold text-amber-700">Pending Approval</span>
+                  <span className="font-extrabold text-xl text-amber-900 leading-none">{users.length}</span>
+                </div>
+              </div>
+              <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 px-4 py-2.5 rounded-xl shadow-sm flex items-center gap-2.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                <div>
+                  <span className="block text-[10px] uppercase font-bold text-emerald-700">Approved Doctors</span>
+                  <span className="font-extrabold text-xl text-emerald-900 leading-none">{approvedUsers.length}</span>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="bg-indigo-100 text-indigo-800 px-4 py-2 rounded-lg font-semibold shadow-sm">
-            Pending Requests: {users.length}
-          </div>
-        </div>
 
         {message && (
           <div className={`p-4 mb-6 rounded-md text-sm font-medium shadow-sm border-l-4 ${message.includes('successfully') ? 'bg-green-50 text-green-700 border-green-500' : 'bg-red-50 text-red-700 border-red-500'}`}>

@@ -45,7 +45,8 @@ exports.getAdminStats = async (req, res) => {
         const { Payout, XrayCase } = require('../models');
         const { Op } = require('sequelize');
         
-        const totalDoctors = await User.count({ where: { role: 'doctor', status: 'approved' } });
+        const approvedDoctors = await User.count({ where: { role: 'doctor', status: 'approved' } });
+        const pendingDoctors = await User.count({ where: { role: 'doctor', status: 'pending' } });
         
         // Count all cases pending doctor diagnosis/completion ('uploaded' open pool or 'in_progress')
         const pendingCases = await XrayCase.count({ 
@@ -60,7 +61,9 @@ exports.getAdminStats = async (req, res) => {
         const pendingDues = payouts.reduce((sum, p) => p.status === 'pending' ? sum + Number(p.amount) : sum, 0);
         
         res.json({
-            totalDoctors,
+            totalDoctors: approvedDoctors,
+            approvedDoctors,
+            pendingDoctors,
             pendingCases,
             completedCases,
             totalPaid,

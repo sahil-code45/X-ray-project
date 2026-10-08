@@ -2,3 +2,4 @@ const isLocal = typeof window !== 'undefined' && (window.location.hostname === '
 
 export const API_BASE_URL = import.meta.env.VITE_API_URL || 
   (isLocal ? 'http://localhost:8000' : 'https://x-ray-project-wke3.onrender.com');
+
