@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
+import { API_BASE_URL } from '../config';
 
 export default function RegisterDoctor() {
   const [isLogin, setIsLogin] = useState(false);
@@ -23,7 +24,7 @@ export default function RegisterDoctor() {
     try {
       if (isLogin) {
         // Doctor Login
-        const res = await axios.post('http://localhost:8000/api/auth/login', { email: formData.email, password: formData.password });
+        const res = await axios.post(`${API_BASE_URL}/api/auth/login`, { email: formData.email, password: formData.password });
         localStorage.setItem('token', res.data.token);
         if (res.data.role === 'doctor') {
             navigate('/doctor');
@@ -36,7 +37,7 @@ export default function RegisterDoctor() {
         Object.keys(formData).forEach(key => data.append(key, formData[key]));
         if (degreeFile) data.append('degreeFile', degreeFile);
 
-        await axios.post('http://localhost:8000/api/auth/register/doctor', data);
+        await axios.post(`${API_BASE_URL}/api/auth/register/doctor`, data);
         setMessage('Registration successful! Please wait for Admin approval.');
         setTimeout(() => setIsLogin(true), 3000);
       }

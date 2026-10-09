@@ -25,8 +25,8 @@ export default function AdminDashboard() {
     try {
       const token = localStorage.getItem('token');
       const [pendingRes, approvedRes] = await Promise.all([
-        axios.get('http://localhost:8000/api/admin/pending-users', { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get('http://localhost:8000/api/admin/approved-users', { headers: { Authorization: `Bearer ${token}` } })
+        axios.get(`${API_BASE_URL}/api/admin/pending-users`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_BASE_URL}/api/admin/approved-users`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
       setUsers(pendingRes.data);
       setApprovedUsers(approvedRes.data);
@@ -46,7 +46,7 @@ export default function AdminDashboard() {
   const handleAction = async (id, action) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`http://localhost:8000/api/admin/${action}/${id}`, {}, {
+      await axios.put(`${API_BASE_URL}/api/admin/${action}/${id}`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setMessage(`User ${action}d successfully!`);

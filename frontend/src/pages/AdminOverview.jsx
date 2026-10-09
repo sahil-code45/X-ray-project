@@ -4,6 +4,7 @@ import { downloadReportPdf, openReportPdfInNewTab } from '../utils/downloadPdf';
 import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
 import AdminNav from '../components/AdminNav';
+import { API_BASE_URL } from '../config';
 
 export default function AdminOverview() {
   const [stats, setStats] = useState({
@@ -52,8 +53,8 @@ export default function AdminOverview() {
     try {
       const token = localStorage.getItem('token');
       const [statsRes, casesRes] = await Promise.all([
-        axios.get('http://localhost:8000/api/admin/stats', { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get('http://localhost:8000/api/admin/cases', { headers: { Authorization: `Bearer ${token}` } })
+        axios.get(`${API_BASE_URL}/api/admin/stats`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_BASE_URL}/api/admin/cases`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
       setStats(statsRes.data);
       setAllCases(casesRes.data);

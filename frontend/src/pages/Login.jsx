@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
+import { API_BASE_URL } from '../config';
 
 export default function Login() {
   const [isLogin, setIsLogin] = useState(true);
@@ -24,7 +25,7 @@ export default function Login() {
     setMessage('');
     try {
       if (isLogin) {
-        const res = await axios.post('http://localhost:8000/api/auth/login', formData);
+        const res = await axios.post(`${API_BASE_URL}/api/auth/login`, formData);
         localStorage.setItem('token', res.data.token);
         
         // Redirect based on role
@@ -34,10 +35,10 @@ export default function Login() {
         else navigate('/admin');
       } else {
         if (regRole === 'center') {
-          await axios.post('http://localhost:8000/api/auth/register/center', formData);
+          await axios.post(`${API_BASE_URL}/api/auth/register/center`, formData);
           setMessage('Diagnostic Center registered successfully! Please sign in.');
         } else {
-          await axios.post('http://localhost:8000/api/auth/register/admin', formData);
+          await axios.post(`${API_BASE_URL}/api/auth/register/admin`, formData);
           setMessage('Admin registered successfully! Please sign in.');
         }
         setIsLogin(true);

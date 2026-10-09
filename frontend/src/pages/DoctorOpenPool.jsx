@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import { API_BASE_URL } from '../config';
 
 export default function DoctorOpenPool() {
   const [cases, setCases] = useState([]);
@@ -13,7 +14,7 @@ export default function DoctorOpenPool() {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.get('http://localhost:8000/api/cases/available', {
+      const res = await axios.get(`${API_BASE_URL}/api/cases/available`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setCases(res.data.availableCases || []);
@@ -35,7 +36,7 @@ export default function DoctorOpenPool() {
   const handleClaim = async (id) => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.post(`http://localhost:8000/api/cases/claim/${id}`, {}, {
+      const res = await axios.post(`${API_BASE_URL}/api/cases/claim/${id}`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       toast.success('Case claimed successfully! Redirecting to workspace...');

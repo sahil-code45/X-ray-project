@@ -30,8 +30,8 @@ export default function AdminDoctors() {
       setLoading(true);
       const token = localStorage.getItem('token');
       const [approvedRes, pendingRes] = await Promise.all([
-        axios.get('http://localhost:8000/api/admin/approved-users', { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get('http://localhost:8000/api/admin/pending-users', { headers: { Authorization: `Bearer ${token}` } })
+        axios.get(`${API_BASE_URL}/api/admin/approved-users`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_BASE_URL}/api/admin/pending-users`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
       setDoctors(approvedRes.data);
       setPendingCount(pendingRes.data?.length || 0);

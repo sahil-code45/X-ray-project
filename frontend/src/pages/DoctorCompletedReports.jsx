@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import ReportViewer from '../components/ReportViewer';
 import { downloadReportPdf, openReportPdfInNewTab } from '../utils/downloadPdf';
+import { API_BASE_URL } from '../config';
 
 export default function DoctorCompletedReports() {
   const [completedCases, setCompletedCases] = useState([]);
@@ -44,7 +45,7 @@ export default function DoctorCompletedReports() {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.get('http://localhost:8000/api/cases/available', {
+      const res = await axios.get(`${API_BASE_URL}/api/cases/available`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setCompletedCases(res.data.completedCases || []);

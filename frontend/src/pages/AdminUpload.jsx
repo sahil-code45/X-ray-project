@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
 import AdminNav from '../components/AdminNav';
 import { toast } from 'react-toastify';
+import { API_BASE_URL } from '../config';
 
 export default function AdminUpload() {
   const [caseForm, setCaseForm] = useState({ patientId: '', patientName: '', patientAge: '', patientGender: 'Male', studyNotes: '' });
@@ -17,7 +18,7 @@ export default function AdminUpload() {
   const fetchRecentCases = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get('http://localhost:8000/api/admin/cases', {
+      const res = await axios.get(`${API_BASE_URL}/api/admin/cases`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       // Show top 5 most recent
@@ -74,7 +75,7 @@ export default function AdminUpload() {
 
     try {
       const token = localStorage.getItem('token');
-      await axios.post('http://localhost:8000/api/cases/upload', data, {
+      await axios.post(`${API_BASE_URL}/api/cases/upload`, data, {
         headers: { Authorization: `Bearer ${token}` }
       });
       toast.success('X-Ray Case uploaded successfully!');

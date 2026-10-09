@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import AdminNav from '../components/AdminNav';
+import { API_BASE_URL } from '../config';
 
 export default function AdminDoctorPayoutDetails() {
   const { doctorId } = useParams();
@@ -23,7 +24,7 @@ export default function AdminDoctorPayoutDetails() {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.get(`http://localhost:8000/api/payouts/admin/doctor/${doctorId}`, {
+      const res = await axios.get(`${API_BASE_URL}/api/payouts/admin/doctor/${doctorId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setPayouts(res.data);
@@ -53,7 +54,7 @@ export default function AdminDoctorPayoutDetails() {
 
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`http://localhost:8000/api/payouts/admin/${id}/pay`, { transactionRef }, {
+      await axios.put(`${API_BASE_URL}/api/payouts/admin/${id}/pay`, { transactionRef }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setMessage(`Payout #${id} marked as paid successfully!`);

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
+import { API_BASE_URL } from '../config';
 
 export default function DoctorDashboard() {
   const [cases, setCases] = useState([]);
@@ -31,8 +32,8 @@ export default function DoctorDashboard() {
       const token = localStorage.getItem('token');
       
       const [casesRes, payoutsRes] = await Promise.all([
-        axios.get('http://localhost:8000/api/cases/available', { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get('http://localhost:8000/api/payouts/doctor', { headers: { Authorization: `Bearer ${token}` } })
+        axios.get(`${API_BASE_URL}/api/cases/available`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_BASE_URL}/api/payouts/doctor`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
       
       setCases(casesRes.data.availableCases || []);
@@ -52,7 +53,7 @@ export default function DoctorDashboard() {
   const handleClaim = async (id) => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.post(`http://localhost:8000/api/cases/claim/${id}`, {}, {
+      const res = await axios.post(`${API_BASE_URL}/api/cases/claim/${id}`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setMessage('Case claimed successfully!');

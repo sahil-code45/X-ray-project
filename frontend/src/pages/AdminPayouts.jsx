@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
 import AdminNav from '../components/AdminNav';
+import { API_BASE_URL } from '../config';
 
 export default function AdminPayouts() {
   const [payouts, setPayouts] = useState([]);
@@ -15,7 +16,7 @@ export default function AdminPayouts() {
   const fetchPayouts = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get('http://localhost:8000/api/payouts/admin', {
+      const res = await axios.get(`${API_BASE_URL}/api/payouts/admin`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setPayouts(res.data);

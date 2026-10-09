@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import ReportViewer from '../components/ReportViewer';
 import { downloadReportPdf, openReportPdfInNewTab } from '../utils/downloadPdf';
+import { API_BASE_URL } from '../config';
 
 export default function CenterUpload() {
   const [caseForm, setCaseForm] = useState({ 
@@ -53,7 +54,7 @@ export default function CenterUpload() {
   const fetchRecentCases = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get('http://localhost:8000/api/cases/center/cases', {
+      const res = await axios.get(`${API_BASE_URL}/api/cases/center/cases`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setRecentCases(res.data || []);
@@ -110,7 +111,7 @@ export default function CenterUpload() {
 
     try {
       const token = localStorage.getItem('token');
-      await axios.post('http://localhost:8000/api/cases/upload', data, {
+      await axios.post(`${API_BASE_URL}/api/cases/upload`, data, {
         headers: { Authorization: `Bearer ${token}` },
         onUploadProgress: (progressEvent) => {
           const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);

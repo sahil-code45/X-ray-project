@@ -74,7 +74,7 @@ export default function DoctorWorkspace() {
     const fetchCase = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await axios.get(`http://localhost:8000/api/cases/${id}`, {
+        const res = await axios.get(`${API_BASE_URL}/api/cases/${id}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (!isMounted) return;
@@ -90,7 +90,7 @@ export default function DoctorWorkspace() {
         
         // Fetch metadata to see if it's a valid DICOM directory/file
         try {
-          const metaRes = await axios.get(`http://localhost:8000/api/cases/${id}/dicom-metadata`, {
+          const metaRes = await axios.get(`${API_BASE_URL}/api/cases/${id}/dicom-metadata`, {
             headers: { Authorization: `Bearer ${token}` }
           });
           
@@ -212,7 +212,7 @@ export default function DoctorWorkspace() {
     e.preventDefault();
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.post(`http://localhost:8000/api/cases/${id}/report`, formData, {
+      const res = await axios.post(`${API_BASE_URL}/api/cases/${id}/report`, formData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const isEdit = Boolean(caseDetails?.report);

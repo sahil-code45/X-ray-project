@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
 import ReportViewer from '../components/ReportViewer';
 import { downloadReportPdf, openReportPdfInNewTab } from '../utils/downloadPdf';
+import { API_BASE_URL } from '../config';
 
 export default function CenterCases() {
   const [cases, setCases] = useState([]);
@@ -45,7 +46,7 @@ export default function CenterCases() {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const res = await axios.get('http://localhost:8000/api/cases/center/cases', {
+      const res = await axios.get(`${API_BASE_URL}/api/cases/center/cases`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setCases(res.data || []);
