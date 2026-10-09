@@ -16,7 +16,8 @@ export default function CenterUpload() {
   const [dicomFile, setDicomFile] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [message, setMessage] = useState('');
-  const [loading, setLoading] = useState(false);`n  const [uploadProgress, setUploadProgress] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [downloading, setDownloading] = useState(false);
   const [recentCases, setRecentCases] = useState([]);
   const [selectedReport, setSelectedReport] = useState(null);
@@ -53,11 +54,7 @@ export default function CenterUpload() {
     try {
       const token = localStorage.getItem('token');
       const res = await axios.get('http://localhost:8000/api/cases/center/cases', {
-        headers: { Authorization: `Bearer ${token}` },
-        onUploadProgress: (progressEvent) => {
-          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-          setUploadProgress(percentCompleted);
-        }
+        headers: { Authorization: `Bearer ${token}` }
       });
       setRecentCases(res.data || []);
     } catch (error) {
@@ -103,7 +100,9 @@ export default function CenterUpload() {
       toast.warning('Please select a DICOM or ZIP study file.');
       return setMessage('Please select a DICOM or ZIP study file.');
     }
-    setLoading(true);`n    setUploadProgress(0);`n    setMessage('');
+    setLoading(true);
+    setUploadProgress(0);
+    setMessage('');
 
     const data = new FormData();
     Object.keys(caseForm).forEach(key => data.append(key, caseForm[key]));
