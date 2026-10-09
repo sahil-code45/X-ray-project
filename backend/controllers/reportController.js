@@ -71,13 +71,13 @@ exports.streamDicom = async (req, res) => {
         if (stat.isDirectory()) {
             if (!slice) {
                 // If they want to download the directory, zip it on the fly and send
-                const archiver = require('archiver');
+                const { ZipArchive } = require('archiver');
                 res.writeHead(200, {
                     'Content-Type': 'application/zip',
                     'Content-Disposition': `attachment; filename="case_${id}_files.zip"`
                 });
                 
-                const archive = archiver('zip', { zlib: { level: 1 } }); // level 1 for speed
+                const archive = new ZipArchive({ zlib: { level: 1 } }); // level 1 for speed
                 archive.on('error', function(err) {
                     console.error('Archive error:', err);
                     if (!res.headersSent) {
