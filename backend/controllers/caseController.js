@@ -1,6 +1,6 @@
 const { XrayCase, sequelize } = require('../models');
 
-const AdmZip = require('adm-zip');
+const extract = require('extract-zip');
 const fs = require('fs');
 const path = require('path');
 
@@ -16,11 +16,10 @@ exports.uploadCase = async (req, res) => {
         let status = 'uploaded';
         let extractedDir = null;
 
-        // If it's a zip file, extract it
+        // If it's a zip file, extract it safely using streams (extract-zip) to avoid out-of-memory errors
         if (dicomFileUrl.toLowerCase().endsWith('.zip')) {
-            const zip = new AdmZip(dicomFileUrl);
             extractedDir = path.join(__dirname, '..', 'uploads', `extracted_${Date.now()}`);
-            zip.extractAllTo(extractedDir, true);
+            await extract(path.resolve(dicomFileUrl), { dir: path.resolve(extractedDir) });
             dicomFileUrl = extractedDir; // Save directory path instead of zip path
         }
 

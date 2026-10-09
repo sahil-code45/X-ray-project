@@ -458,7 +458,7 @@ export default function AdminOverview() {
                   </svg>
                   Print Report
                 </button>
-                <button onClick={() => setSelectedReport(null)} className="bg-gray-800 text-white px-4 py-2 rounded-lg hover:bg-gray-700 font-semibold shadow transition text-sm cursor-pointer">Close</button>
+                {/* <button onClick={() => setSelectedReport(null)} className="bg-gray-800 text-white px-4 py-2 rounded-lg hover:bg-gray-700 font-semibold shadow transition text-sm cursor-pointer">Close</button> */}
               </div>
             </div>
           </div>

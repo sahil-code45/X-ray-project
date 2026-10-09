@@ -390,12 +390,12 @@ export default function DoctorCompletedReports() {
                   </svg>
                   Print Report
                 </button>
-                <button
+                {/* <button
                   onClick={() => setSelectedReport(null)}
                   className="bg-gray-800 hover:bg-gray-700 text-white px-5 py-2 rounded-lg font-semibold text-sm shadow transition cursor-pointer"
                 >
                   Close
-                </button>
+                </button> */}
               </div>
             </div>
           </div>

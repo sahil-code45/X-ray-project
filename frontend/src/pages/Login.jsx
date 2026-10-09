@@ -54,7 +54,10 @@ export default function Login() {
     <div className="flex h-screen w-full bg-gray-50 absolute top-0 left-0 z-50">
       {/* Left Side - Banner */}
       <div className="hidden lg:flex flex-col justify-center items-center w-1/2 bg-gradient-to-br from-blue-700 to-indigo-900 text-white p-12">
-        <h1 className="text-5xl font-extrabold mb-6 tracking-tight">Tele-Radiology<br/>Platform</h1>
+        <div className="bg-white px-8 py-5 rounded-2xl shadow-2xl mb-8 flex items-center justify-center space-x-4">
+          <img src="/logo.png" alt="ANNRAD Tele-Radiology" className="h-16 w-auto object-contain" />
+          <h1 className="text-4xl font-black text-gray-900 tracking-tighter leading-none">Tele-Radiology</h1>
+        </div>
         <p className="text-lg text-blue-100 max-w-md text-center leading-relaxed">
           Streamlining medical diagnosis with advanced DICOM viewing, atomic case claiming, and automated settlements.
         </p>
@@ -64,6 +67,10 @@ export default function Login() {
       <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
         <div className="w-full max-w-md bg-white p-10 rounded-2xl shadow-2xl border border-gray-100">
           <div className="mb-6 text-center">
+            <div className="flex items-center justify-center space-x-2 mb-6 lg:hidden">
+              <img src="/logo.png" alt="ANNRAD Logo" className="h-10 w-auto object-contain" />
+              <h1 className="text-2xl font-black text-gray-900 tracking-tighter leading-none">Tele-Radiology</h1>
+            </div>
             <h2 className="text-3xl font-bold text-gray-800">
               {isLogin ? 'Sign In to Portal' : (regRole === 'center' ? 'Register Diagnostic Center' : 'Create Admin Account')}
             </h2>

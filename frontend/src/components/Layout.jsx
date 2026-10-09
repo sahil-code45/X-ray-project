@@ -90,12 +90,17 @@ export default function Layout({ children, role }) {
     <div className="flex h-screen bg-gray-100 font-sans text-gray-800 overflow-hidden">
       {/* Sidebar */}
       <aside className="w-64 bg-gray-50 border-r border-gray-200 flex flex-col shadow-sm flex-shrink-0 relative">
-        <div className="p-6">
-          <h1 className="text-2xl font-bold text-gray-800 tracking-tight">Tele-Radiology</h1>
-          <p className="text-xs text-blue-600 font-bold uppercase mt-1">
-            {role === 'admin' ? 'Admin Portal' : (role === 'center' ? 'Diagnostic Center' : 'Doctor Portal')}
-          </p>
-        </div>
+        <div className="p-5 pb-4 border-b border-gray-200">
+            <div className="flex items-center justify-center space-x-2 mb-2">
+              <img src="/logo.png" alt="Logo" className="h-12 w-auto object-contain" />
+              <h1 className="text-lg font-black text-gray-800 tracking-tight leading-none">Tele-Radiology</h1>
+            </div>
+            <div className="text-center">
+              <p className="text-[11px] text-blue-600 font-extrabold uppercase tracking-widest">
+                {role === 'admin' ? 'Admin Portal' : (role === 'center' ? 'Diagnostic Center' : 'Doctor Portal')}
+              </p>
+            </div>
+          </div>
 
         <nav className="flex-1 px-4 space-y-1 mt-4 overflow-y-auto">
           {links.map((link) => {
