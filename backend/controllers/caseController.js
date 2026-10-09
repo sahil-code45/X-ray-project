@@ -5,9 +5,11 @@ const fs = require('fs');
 const path = require('path');
 
 exports.uploadCase = async (req, res) => {
+    console.log('--- Upload request received ---');
     try {
         const { patientId, patientName, patientAge, patientGender, studyNotes } = req.body;
         let dicomFileUrl = req.file ? req.file.path : null;
+        console.log('File uploaded to multer:', dicomFileUrl);
 
         if (!dicomFileUrl) {
             return res.status(400).json({ message: 'DICOM/ZIP file is required' });
@@ -19,7 +21,9 @@ exports.uploadCase = async (req, res) => {
         // If it's a zip file, extract it safely using streams (extract-zip) to avoid out-of-memory errors
         if (dicomFileUrl.toLowerCase().endsWith('.zip')) {
             extractedDir = path.join(__dirname, '..', 'uploads', `extracted_${Date.now()}`);
+            console.log('Starting extraction to:', extractedDir);
             await extract(path.resolve(dicomFileUrl), { dir: path.resolve(extractedDir) });
+            console.log('Extraction complete');
             dicomFileUrl = extractedDir; // Save directory path instead of zip path
         }
 

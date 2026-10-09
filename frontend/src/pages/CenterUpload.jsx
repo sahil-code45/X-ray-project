@@ -16,7 +16,7 @@ export default function CenterUpload() {
   const [dicomFile, setDicomFile] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [message, setMessage] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false);`n  const [uploadProgress, setUploadProgress] = useState(0);
   const [downloading, setDownloading] = useState(false);
   const [recentCases, setRecentCases] = useState([]);
   const [selectedReport, setSelectedReport] = useState(null);
@@ -53,7 +53,11 @@ export default function CenterUpload() {
     try {
       const token = localStorage.getItem('token');
       const res = await axios.get('http://localhost:8000/api/cases/center/cases', {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setUploadProgress(percentCompleted);
+        }
       });
       setRecentCases(res.data || []);
     } catch (error) {
@@ -99,8 +103,7 @@ export default function CenterUpload() {
       toast.warning('Please select a DICOM or ZIP study file.');
       return setMessage('Please select a DICOM or ZIP study file.');
     }
-    setLoading(true);
-    setMessage('');
+    setLoading(true);`n    setUploadProgress(0);`n    setMessage('');
 
     const data = new FormData();
     Object.keys(caseForm).forEach(key => data.append(key, caseForm[key]));
@@ -109,7 +112,11 @@ export default function CenterUpload() {
     try {
       const token = localStorage.getItem('token');
       await axios.post('http://localhost:8000/api/cases/upload', data, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setUploadProgress(percentCompleted);
+        }
       });
       toast.success('Patient case submitted successfully to the Radiologist pool!');
       setMessage('Patient case submitted successfully!');
@@ -362,7 +369,7 @@ export default function CenterUpload() {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
                     </svg>
-                    Uploading & Submitting Case...
+                    {uploadProgress < 100 ? `Uploading... (${uploadProgress}%)` : 'Extracting & Submitting... Please wait'}
                   </>
                 ) : (
                   <>
