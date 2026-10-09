@@ -70,13 +70,24 @@ exports.streamDicom = async (req, res) => {
         const stat = fs.statSync(filePath);
         if (stat.isDirectory()) {
             if (!slice) {
-                // If they want to download the directory, let's see if it has only one file (e.g. a nested zip)
-                const files = fs.readdirSync(filePath);
-                if (files.length === 1 && fs.statSync(path.join(filePath, files[0])).isFile()) {
-                    filePath = path.join(filePath, files[0]); // Stream the only file
-                } else {
-                    return res.status(400).json({ message: 'This case contains multiple files. Cannot download entire directory.' });
-                }
+                // If they want to download the directory, zip it on the fly and send
+                const archiver = require('archiver');
+                res.writeHead(200, {
+                    'Content-Type': 'application/zip',
+                    'Content-Disposition': `attachment; filename="case_${id}_files.zip"`
+                });
+                
+                const archive = archiver('zip', { zlib: { level: 1 } }); // level 1 for speed
+                archive.on('error', function(err) {
+                    console.error('Archive error:', err);
+                    if (!res.headersSent) {
+                        res.status(500).json({error: err.message});
+                    }
+                });
+                
+                archive.pipe(res);
+                archive.directory(filePath, false); // false means don't include the root folder itself
+                return archive.finalize();
             } else {
                 filePath = path.join(filePath, slice);
                 if (!fs.existsSync(filePath)) return res.status(404).json({ message: 'Slice not found' });
