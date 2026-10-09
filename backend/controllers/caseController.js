@@ -23,6 +23,27 @@ exports.uploadCase = async (req, res) => {
             extractedDir = path.join(__dirname, '..', 'uploads', `extracted_${Date.now()}`);
             console.log('Starting extraction to:', extractedDir);
             await extract(path.resolve(dicomFileUrl), { dir: path.resolve(extractedDir) });
+            
+            // Recursively extract any nested zip files
+            const extractAllZips = async (dir) => {
+                const files = fs.readdirSync(dir);
+                for (const file of files) {
+                    const fullPath = path.join(dir, file);
+                    if (fs.statSync(fullPath).isDirectory()) {
+                        await extractAllZips(fullPath);
+                    } else if (file.toLowerCase().endsWith('.zip')) {
+                        const dest = path.join(dir, file.substring(0, file.length - 4));
+                        try {
+                            await extract(fullPath, { dir: dest });
+                            fs.unlinkSync(fullPath);
+                            await extractAllZips(dest);
+                        } catch (err) {
+                            console.error('Failed to extract nested zip:', err);
+                        }
+                    }
+                }
+            };
+            await extractAllZips(extractedDir);
             console.log('Extraction complete');
             dicomFileUrl = extractedDir; // Save directory path instead of zip path
         }

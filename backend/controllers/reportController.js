@@ -36,8 +36,10 @@ exports.getDicomMetadata = async (req, res) => {
             // Filter for DCM files, ignoring .zip or other random files
             let dcmFiles = allFiles.filter(f => {
                 const lowerF = f.toLowerCase();
+                const baseName = path.basename(f);
+                if (f.includes('__MACOSX') || baseName.startsWith('.')) return false;
                 // Check if it's a dicom file or an extensionless file
-                return lowerF.endsWith('.dcm') || lowerF.endsWith('.img') || (!path.basename(f).includes('.') && !lowerF.endsWith('.zip'));
+                return lowerF.endsWith('.dcm') || lowerF.endsWith('.img') || (!baseName.includes('.') && !lowerF.endsWith('.zip'));
             }).sort();
             
             // Map absolute paths back to relative slices (from the base filePath)

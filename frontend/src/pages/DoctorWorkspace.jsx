@@ -127,10 +127,10 @@ export default function DoctorWorkspace() {
     
     try {
       cornerstoneWADOImageLoader.webWorkerManager.initialize({
-        maxWebWorkers: navigator.hardwareConcurrency || 1,
-        startWebWorkersOnDemand: true,
+        maxWebWorkers: 0,
+        startWebWorkersOnDemand: false,
         taskConfiguration: {
-          decodeTask: { initializeCodecsOnStartup: false, usePDFJS: false }
+          decodeTask: { initializeCodecsOnStartup: true, usePDFJS: false }
         }
       });
     } catch (e) {
@@ -140,12 +140,8 @@ export default function DoctorWorkspace() {
     if (viewerRef.current) cornerstone.enable(viewerRef.current);
 
     try {
-      const imageIds = slices.map(s => `wadouri:${API_BASE_URL}/api/cases/${id}/dicom-stream?slice=${encodeURIComponent(s)}&token=${token}`);
+      let imageIds = slices.map(s => `wadouri:${API_BASE_URL}/api/cases/${id}/dicom-stream?slice=${encodeURIComponent(s)}&token=${token}`);
       
-      setAllImageIds(imageIds);
-      setTotalSlices(imageIds.length);
-      setCurrentSlice(0);
-
       cornerstoneWADOImageLoader.configure({
         beforeSend: function(xhr) { xhr.setRequestHeader('Authorization', `Bearer ${token}`); }
       });
@@ -153,6 +149,20 @@ export default function DoctorWorkspace() {
       const firstImage = await cornerstone.loadAndCacheImage(imageIds[0]);
       if (!firstImage) throw new Error("Failed to load first image");
       
+      // Multiframe DICOM support
+      const numFrames = firstImage.data ? firstImage.data.intString('x00280008') : null;
+      if (numFrames && numFrames > 1 && imageIds.length === 1) {
+          const multiFrames = [];
+          for (let i = 0; i < numFrames; i++) {
+              multiFrames.push(imageIds[0] + `&frame=${i}`);
+          }
+          imageIds = multiFrames;
+      }
+
+      setAllImageIds(imageIds);
+      setTotalSlices(imageIds.length);
+      setCurrentSlice(0);
+
       cornerstone.displayImage(viewerRef.current, firstImage);
 
       // Stack setup
@@ -280,19 +290,19 @@ export default function DoctorWorkspace() {
         <div className={`w-2/3 flex flex-col p-2 ${isDicom ? 'bg-black' : 'bg-gray-100 items-center justify-center'}`}>
           {isDicom ? (
             <>
-              <div className="flex space-x-2 mb-2 text-white text-sm">
+              <div className="flex space-x-2 mb-2 text-white text-sm flex-shrink-0">
                 <button onClick={() => setTool('Wwwc')} className="px-3 py-1 bg-gray-700 rounded hover:bg-gray-600">WW/WC (Contrast)</button>
                 <button onClick={() => setTool('Zoom')} className="px-3 py-1 bg-gray-700 rounded hover:bg-gray-600">Zoom</button>
                 <button onClick={() => setTool('Pan')} className="px-3 py-1 bg-gray-700 rounded hover:bg-gray-600">Pan</button>
                 <button onClick={() => setTool('Length')} className="px-3 py-1 bg-gray-700 rounded hover:bg-gray-600">Measure</button>
                 <button onClick={() => cornerstone.reset(viewerRef.current)} className="px-3 py-1 bg-gray-700 rounded hover:bg-gray-600 ml-auto">Reset</button>
               </div>
-              <div ref={viewerRef} className="flex-1 w-full bg-black border border-gray-600 relative oncontextmenu-false">
+              <div ref={viewerRef} className="flex-1 w-full bg-black border border-gray-600 relative min-h-0 overflow-hidden oncontextmenu-false">
               </div>
               
               {/* Slice Slider UI */}
               {totalSlices > 1 && (
-                <div className="bg-gray-800 p-3 flex items-center gap-4 text-white text-sm">
+                <div className="bg-gray-800 p-3 flex items-center gap-4 text-white text-sm flex-shrink-0">
                   <button 
                     onClick={() => handleSliceChange(currentSlice - 1)}
                     disabled={currentSlice === 0}
