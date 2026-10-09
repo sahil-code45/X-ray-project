@@ -287,6 +287,7 @@ export default function DoctorWorkspace() {
       {/* Main Workspace Body */}
       <div className="flex flex-1 overflow-hidden">
         {/* Viewer / Download Area */}
+        {/* Image viewer commented out as requested
         <div className={`w-2/3 flex flex-col p-2 ${isDicom ? 'bg-black' : 'bg-gray-100 items-center justify-center'}`}>
           {isDicom ? (
             <>
@@ -300,7 +301,7 @@ export default function DoctorWorkspace() {
               <div ref={viewerRef} className="flex-1 w-full bg-black border border-gray-600 relative min-h-0 overflow-hidden oncontextmenu-false">
               </div>
               
-              {/* Slice Slider UI */}
+              {/* Slice Slider UI * /}
               {totalSlices > 1 && (
                 <div className="bg-gray-800 p-3 flex items-center gap-4 text-white text-sm flex-shrink-0">
                   <button 
@@ -344,6 +345,7 @@ export default function DoctorWorkspace() {
             </div>
           )}
         </div>
+        */}
 
         {/* Reporting Form Area */}
         <div className="w-1/3 bg-white p-6 overflow-y-auto border-l flex flex-col">

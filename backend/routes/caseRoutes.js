@@ -16,8 +16,8 @@ router.get('/center/cases', verifyRole('admin', 'center'), caseController.getCen
 router.get('/available', verifyRole('doctor'), caseController.getAvailableCases);
 router.get('/:id', verifyRole('doctor'), caseController.getCaseById);
 router.post('/claim/:id', verifyRole('doctor'), caseController.claimCase);
-router.get('/:id/dicom-metadata', verifyRole('doctor'), reportController.getDicomMetadata);
-router.get('/:id/dicom-stream', verifyRole('doctor'), reportController.streamDicom);
+// router.get('/:id/dicom-metadata', verifyRole('doctor'), reportController.getDicomMetadata);
+// router.get('/:id/dicom-stream', verifyRole('doctor'), reportController.streamDicom);
 router.post('/:id/report', verifyRole('doctor'), reportController.submitReport);
 
 module.exports = router;

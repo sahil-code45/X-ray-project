@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const PDFDocument = require('pdfkit');
 
+/*
 exports.getDicomMetadata = async (req, res) => {
     try {
         const { id } = req.params;
@@ -130,6 +131,7 @@ exports.streamDicom = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 };
+*/
 
 exports.submitReport = async (req, res) => {
     const t = await sequelize.transaction();
