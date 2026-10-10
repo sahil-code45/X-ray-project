@@ -9,6 +9,7 @@ import * as cornerstoneTools from 'cornerstone-tools';
 import cornerstoneWADOImageLoader from 'cornerstone-wado-image-loader';
 import dicomParser from 'dicom-parser';
 import Hammer from 'hammerjs';
+import { CT_TEMPLATES } from '../utils/ctTemplates';
 
 const SimpleEditor = ({ value, onChange, minHeight = '120px' }) => {
   const editorRef = useRef(null);
@@ -68,6 +69,8 @@ export default function DoctorWorkspace() {
   const [currentSlice, setCurrentSlice] = useState(0);
   const [totalSlices, setTotalSlices] = useState(0);
   const [allImageIds, setAllImageIds] = useState([]);
+  const [isCT, setIsCT] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
 
   useEffect(() => {
     let isMounted = true;
@@ -81,10 +84,17 @@ export default function DoctorWorkspace() {
         setCaseDetails(res.data);
         
         if (res.data.report) {
+          let combined = res.data.report.clinicalFindings || '';
+          if (res.data.report.impression) {
+            combined += `<br/><p><strong>IMPRESSION</strong></p>${res.data.report.impression}`;
+          }
+          if (res.data.report.recommendations) {
+            combined += `<br/><p><strong>RECOMMENDATIONS</strong></p>${res.data.report.recommendations}`;
+          }
           setFormData({
-            clinicalFindings: res.data.report.clinicalFindings || '',
-            impression: res.data.report.impression || '',
-            recommendations: res.data.report.recommendations || ''
+            clinicalFindings: combined,
+            impression: '',
+            recommendations: ''
           });
         }
         
@@ -234,6 +244,23 @@ export default function DoctorWorkspace() {
     }
   };
 
+  const handleTemplateChange = (e) => {
+    const id = e.target.value;
+    setSelectedTemplateId(id);
+    if (id) {
+      const template = CT_TEMPLATES.find(t => t.id === parseInt(id));
+      if (template) {
+        const combined = `${template.findings || ''}<br/><p><strong>IMPRESSION</strong></p>${template.impression || ''}`;
+        setFormData({
+          ...formData,
+          clinicalFindings: combined,
+          impression: '',
+          recommendations: ''
+        });
+      }
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen bg-gray-900 overflow-hidden">
       {/* Top Workspace Header Bar */}
@@ -348,49 +375,79 @@ export default function DoctorWorkspace() {
         */}
 
         {/* Reporting Form Area */}
-        <div className="w-1/3 bg-white p-6 overflow-y-auto border-l flex flex-col">
-          <div className="flex items-center justify-between mb-4 pb-2 border-b">
+        {/* Reporting Form Area */}
+        <div className="w-full max-w-4xl mx-auto bg-white p-8 overflow-y-auto rounded-xl shadow-2xl my-6 flex flex-col border border-gray-200">
+          <div className="flex items-center justify-center mb-6 pb-4 border-b text-center">
             <div>
-              <h2 className="text-xl font-bold text-gray-800">Diagnosis Report</h2>
-              <p className="text-xs text-gray-500">Record observations, impression, and recommendations</p>
+              <h2 className="text-3xl font-extrabold text-gray-800">Diagnosis Report</h2>
+              <p className="text-sm text-gray-500 mt-1">Record observations, impression, and recommendations in the editor below</p>
             </div>
           </div>
 
           {caseDetails?.report && (
-            <div className="bg-amber-50 border border-amber-200 text-amber-900 p-3 rounded-xl mb-4 text-xs shadow-sm">
-              <span className="font-bold flex items-center gap-1 mb-0.5">
+            <div className="bg-amber-50 border border-amber-200 text-amber-900 p-4 rounded-xl mb-6 text-sm shadow-sm">
+              <span className="font-bold flex items-center justify-center gap-1 mb-1">
                 ✏️ Editing Mode Active
               </span>
-              <p className="text-[11px] text-amber-700">
+              <p className="text-center text-amber-700">
                 Loaded previously submitted diagnostic details. You can modify any findings below and save your edits.
               </p>
             </div>
           )}
 
-          {message && <p className="mb-4 text-blue-600 text-sm font-semibold">{message}</p>}
+          {message && <p className="mb-4 text-blue-600 text-center font-semibold">{message}</p>}
           
-          <form onSubmit={handleSubmit} className="space-y-4 flex flex-col flex-1 overflow-y-auto pr-1">
-            <div>
-              <label className="block font-semibold mb-1 text-sm text-gray-700">Clinical Findings / Observations</label>
-              <SimpleEditor value={formData.clinicalFindings} onChange={(val) => setFormData({ ...formData, clinicalFindings: val })} minHeight="180px" />
+          {/* CT Templates Selection */}
+          <div className="mb-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
+            <label className="flex items-center space-x-2 text-sm font-bold text-gray-800 cursor-pointer">
+              <input 
+                type="checkbox" 
+                checked={isCT} 
+                onChange={(e) => {
+                  setIsCT(e.target.checked);
+                  if (!e.target.checked) setSelectedTemplateId('');
+                }} 
+                className="w-5 h-5 text-cyan-600 border-gray-300 rounded focus:ring-cyan-500"
+              />
+              <span>Use CT Report Templates</span>
+            </label>
+            
+            {isCT && (
+              <div className="mt-3">
+                <select 
+                  value={selectedTemplateId} 
+                  onChange={handleTemplateChange}
+                  className="w-full p-3 border border-gray-300 rounded-lg text-sm bg-white focus:ring-cyan-500 focus:border-cyan-500 shadow-sm"
+                >
+                  <option value="">-- Select CT Template Format --</option>
+                  {CT_TEMPLATES.map(template => (
+                    <option key={template.id} value={template.id}>{template.name}</option>
+                  ))}
+                </select>
+                {selectedTemplateId && (
+                  <p className="text-xs text-cyan-700 mt-2 font-medium bg-cyan-50 p-2 rounded border border-cyan-100 text-center">
+                    Template loaded into editor below. You can now edit the contents.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+          
+          <form onSubmit={handleSubmit} className="space-y-6 flex flex-col flex-1">
+            <div className="flex-1 flex flex-col">
+              <label className="block font-bold mb-2 text-lg text-gray-800">Report Editor</label>
+              <SimpleEditor value={formData.clinicalFindings} onChange={(val) => setFormData({ ...formData, clinicalFindings: val })} minHeight="400px" />
             </div>
-            <div>
-              <label className="block font-semibold mb-1 text-sm text-gray-700">Impression</label>
-              <SimpleEditor value={formData.impression} onChange={(val) => setFormData({ ...formData, impression: val })} minHeight="120px" />
-            </div>
-            <div>
-              <label className="block font-semibold mb-1 text-sm text-gray-700">Recommendations</label>
-              <SimpleEditor value={formData.recommendations} onChange={(val) => setFormData({ ...formData, recommendations: val })} minHeight="120px" />
-            </div>
+            
             <button
               type="submit"
-              className={`w-full py-3 px-4 rounded-xl font-bold shadow-md transition transform hover:-translate-y-0.5 mt-auto sticky bottom-0 z-10 flex items-center justify-center gap-2 text-white ${
+              className={`w-full py-4 px-6 rounded-xl font-bold text-lg shadow-lg transition transform hover:-translate-y-1 flex items-center justify-center gap-2 text-white ${
                 caseDetails?.report
                   ? 'bg-amber-600 hover:bg-amber-700'
                   : 'bg-green-600 hover:bg-green-700'
               }`}
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
               </svg>
               {caseDetails?.report ? 'Update & Save Report' : 'Submit & Sign Report'}

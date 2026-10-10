@@ -177,3 +177,40 @@ exports.claimCase = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 };
+
+exports.downloadCaseFiles = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const xrayCase = await XrayCase.findByPk(id);
+        if (!xrayCase) return res.status(404).json({ message: 'Case not found' });
+        
+        const fs = require('fs');
+        const path = require('path');
+        const filePath = path.resolve(xrayCase.dicomFileUrl);
+        
+        if (!fs.existsSync(filePath)) return res.status(404).json({ message: 'Files not found on server' });
+        
+        const stat = fs.statSync(filePath);
+        if (stat.isDirectory()) {
+            const { ZipArchive } = require('archiver');
+            const archive = new ZipArchive({ zlib: { level: 1 } });
+            
+            res.setHeader('Content-Type', 'application/zip');
+            res.setHeader('Content-Disposition', `attachment; filename="case_${id}_files.zip"`);
+            
+            archive.on('error', function(err) {
+                console.error('Archive error:', err);
+                if (!res.headersSent) res.status(500).send({ error: 'Failed to create zip' });
+            });
+            
+            archive.pipe(res);
+            archive.directory(filePath, false);
+            await archive.finalize();
+        } else {
+            res.download(filePath);
+        }
+    } catch (error) {
+        console.error('Download error:', error);
+        if (!res.headersSent) res.status(500).json({ error: error.message });
+    }
+};

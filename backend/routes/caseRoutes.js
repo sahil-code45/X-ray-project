@@ -12,8 +12,8 @@ router.use(verifyToken);
 router.post('/upload', verifyRole('admin', 'center'), upload.single('dicomFile'), caseController.uploadCase);
 router.get('/center/cases', verifyRole('admin', 'center'), caseController.getCenterCases);
 
-// Doctor Routes
 router.get('/available', verifyRole('doctor'), caseController.getAvailableCases);
+router.get('/:id/download', verifyRole('doctor'), caseController.downloadCaseFiles);
 router.get('/:id', verifyRole('doctor'), caseController.getCaseById);
 router.post('/claim/:id', verifyRole('doctor'), caseController.claimCase);
 // router.get('/:id/dicom-metadata', verifyRole('doctor'), reportController.getDicomMetadata);
