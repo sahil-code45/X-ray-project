@@ -4,6 +4,18 @@ import { API_BASE_URL } from '../config';
 import { Link, useNavigate } from 'react-router-dom';
 import AdminNav from '../components/AdminNav';
 
+const getDocumentUrl = (filePath) => {
+  if (!filePath) return '';
+  const normalized = filePath.replace(/\\/g, '/');
+  if (normalized.startsWith('http://') || normalized.startsWith('https://')) return normalized;
+  const uploadsIdx = normalized.toLowerCase().indexOf('uploads/');
+  if (uploadsIdx !== -1) {
+    return `${API_BASE_URL}/${normalized.substring(uploadsIdx)}`;
+  }
+  const clean = normalized.replace(/^\/+/, '');
+  return `${API_BASE_URL}/uploads/${clean}`;
+};
+
 export default function AdminDoctors() {
   const [doctors, setDoctors] = useState([]);
   const [pendingCount, setPendingCount] = useState(0);
@@ -57,6 +69,7 @@ export default function AdminDoctors() {
     const email = doc.email?.toLowerCase() || '';
     const phone = doc.doctorProfile?.phoneNumber || '';
     const pan = doc.doctorProfile?.panCard?.toLowerCase() || '';
+    const regNo = doc.doctorProfile?.registrationNumber?.toLowerCase() || '';
     const address = doc.doctorProfile?.address?.toLowerCase() || '';
 
     const matchesSearch = !q || 
@@ -64,6 +77,7 @@ export default function AdminDoctors() {
       email.includes(q) || 
       phone.includes(q) || 
       pan.includes(q) || 
+      regNo.includes(q) || 
       address.includes(q);
 
     const matchesGender = genderFilter === 'all' || doc.doctorProfile?.gender === genderFilter;
@@ -238,6 +252,11 @@ export default function AdminDoctors() {
                               {u.doctorProfile?.age ? `${u.doctorProfile.age} Yrs` : ''} 
                               {u.doctorProfile?.gender ? ` • ${u.doctorProfile.gender}` : ''}
                             </div>
+                            {u.doctorProfile?.registrationNumber && (
+                              <div className="text-xs font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 inline-block mt-1">
+                                Reg No: {u.doctorProfile.registrationNumber}
+                              </div>
+                            )}
                             <div className="text-[11px] text-gray-400 mt-0.5 font-mono">
                               Joined: {new Date(u.createdAt).toLocaleDateString()}
                             </div>
@@ -279,24 +298,47 @@ export default function AdminDoctors() {
                             <span className="font-semibold text-gray-500">Aadhaar:</span> {u.doctorProfile.aadhaarCard}
                           </div>
                         )}
-                        {degreeFile && (
-                          <div className="mt-1.5">
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          {(u.doctorProfile?.mbbsDegreeFileUrl || degreeFile) && (
                             <button
                               type="button"
                               onClick={() => setSelectedDegree({
-                                url: `${API_BASE_URL}/${degreeFile.replace(/\\/g, '/')}`,
-                                doctorName: docName
+                                url: getDocumentUrl(u.doctorProfile?.mbbsDegreeFileUrl || degreeFile),
+                                doctorName: docName,
+                                title: 'MBBS Degree Certificate'
                               })}
                               className="inline-flex items-center text-xs text-indigo-600 hover:text-indigo-800 font-semibold bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded border border-indigo-100 transition shadow-sm cursor-pointer"
                             >
-                              <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                              </svg>
-                              View Degree
+                              📜 MBBS Degree
                             </button>
-                          </div>
-                        )}
+                          )}
+                          {u.doctorProfile?.pgDegreeFileUrl && (
+                            <button
+                              type="button"
+                              onClick={() => setSelectedDegree({
+                                url: getDocumentUrl(u.doctorProfile.pgDegreeFileUrl),
+                                doctorName: docName,
+                                title: 'PG Degree / Specialization'
+                              })}
+                              className="inline-flex items-center text-xs text-purple-600 hover:text-purple-800 font-semibold bg-purple-50 hover:bg-purple-100 px-2 py-0.5 rounded border border-purple-100 transition shadow-sm cursor-pointer"
+                            >
+                              🎓 PG Degree
+                            </button>
+                          )}
+                          {u.doctorProfile?.signatureFileUrl && (
+                            <button
+                              type="button"
+                              onClick={() => setSelectedDegree({
+                                url: getDocumentUrl(u.doctorProfile.signatureFileUrl),
+                                doctorName: docName,
+                                title: 'Doctor Digital Signature'
+                              })}
+                              className="inline-flex items-center text-xs text-emerald-600 hover:text-emerald-800 font-semibold bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded border border-emerald-100 transition shadow-sm cursor-pointer"
+                            >
+                              ✍️ Signature
+                            </button>
+                          )}
+                        </div>
                       </td>
 
                       {/* Status */}
@@ -402,11 +444,11 @@ export default function AdminDoctors() {
             <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-xl shadow-inner">
-                  📜
+                  {selectedDegree.title?.includes('Signature') ? '✍️' : (selectedDegree.title?.includes('PG') ? '🎓' : '📜')}
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-gray-900">
-                    Medical Degree / Registration Certificate
+                    {selectedDegree.title || 'Medical Degree / Registration Certificate'}
                   </h3>
                   <p className="text-xs text-gray-500 font-medium">
                     {selectedDegree.doctorName}

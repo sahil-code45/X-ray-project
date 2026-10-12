@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import ReportViewer from '../components/ReportViewer';
+import SomethingWrongModal from '../components/SomethingWrongModal';
 import { downloadReportPdf, openReportPdfInNewTab } from '../utils/downloadPdf';
 import { API_BASE_URL } from '../config';
 
@@ -22,6 +23,7 @@ export default function CenterUpload() {
   const [downloading, setDownloading] = useState(false);
   const [recentCases, setRecentCases] = useState([]);
   const [selectedReport, setSelectedReport] = useState(null);
+  const [somethingWrongCase, setSomethingWrongCase] = useState(null);
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
 
@@ -424,7 +426,12 @@ export default function CenterUpload() {
                     {new Date(c.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {c.status === 'completed' ? (
+                    {c.status === 'something_wrong' ? (
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-200">
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse mr-1.5"></span>
+                        Something Wrong
+                      </span>
+                    ) : c.status === 'completed' ? (
                       <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-green-100 text-green-800">
                         <span className="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5"></span>
                         Report Ready
@@ -442,7 +449,17 @@ export default function CenterUpload() {
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right">
-                    {c.status === 'completed' && c.report ? (
+                    {c.status === 'something_wrong' ? (
+                      <button
+                        onClick={() => setSomethingWrongCase(c)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg shadow-sm transition cursor-pointer"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        Something Wrong
+                      </button>
+                    ) : c.status === 'completed' && c.report ? (
                       <button
                         onClick={() => setSelectedReport(c)}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm transition"
@@ -529,6 +546,15 @@ export default function CenterUpload() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Something Wrong Notice & Re-upload Modal */}
+      {somethingWrongCase && (
+        <SomethingWrongModal
+          caseData={somethingWrongCase}
+          onClose={() => setSomethingWrongCase(null)}
+          onSuccess={fetchRecentCases}
+        />
       )}
     </div>
   );

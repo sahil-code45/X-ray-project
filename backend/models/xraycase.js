@@ -18,7 +18,12 @@ module.exports = (sequelize, DataTypes) => {
     assignedDoctorId: DataTypes.INTEGER,
     centerId: DataTypes.INTEGER,
     status: DataTypes.STRING,
-    lockedAt: DataTypes.DATE
+    lockedAt: DataTypes.DATE,
+    issueDescription: DataTypes.TEXT,
+    isModified: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false
+    }
   }, {
     sequelize,
     modelName: 'XrayCase',

@@ -5,8 +5,24 @@ const jwt = require('jsonwebtoken');
 exports.registerDoctor = async (req, res) => {
     const t = await sequelize.transaction();
     try {
-        const { email, password, name, age, gender, panCard, aadhaarCard, address, phoneNumber, reportFee } = req.body;
-        const degreeFileUrl = req.file ? req.file.path : null;
+        const { email, password, name, age, gender, panCard, aadhaarCard, address, phoneNumber, reportFee, registrationNumber } = req.body;
+        
+        const mbbsFile = req.files?.mbbsDegreeFile?.[0] || req.files?.degreeFile?.[0] || req.file;
+        const pgFile = req.files?.pgDegreeFile?.[0];
+        const sigFile = req.files?.signatureFile?.[0];
+
+        const toRelativeUrl = (file) => {
+            if (!file) return null;
+            if (file.filename) return `uploads/${file.filename}`;
+            const normalized = file.path.replace(/\\/g, '/');
+            const idx = normalized.indexOf('uploads/');
+            return idx !== -1 ? normalized.substring(idx) : `uploads/${file.path}`;
+        };
+
+        const mbbsDegreeFileUrl = toRelativeUrl(mbbsFile);
+        const pgDegreeFileUrl = toRelativeUrl(pgFile);
+        const signatureFileUrl = toRelativeUrl(sigFile);
+        const degreeFileUrl = mbbsDegreeFileUrl;
 
         const existingUser = await User.findOne({ where: { email } });
         if (existingUser) {
@@ -16,7 +32,22 @@ exports.registerDoctor = async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
         const user = await User.create({ email, password: hashedPassword, role: 'doctor', status: 'pending' }, { transaction: t });
-        await DoctorProfile.create({ userId: user.id, name, age, gender, panCard, aadhaarCard, degreeFileUrl, address, phoneNumber, reportFee }, { transaction: t });
+        await DoctorProfile.create({ 
+            userId: user.id, 
+            name, 
+            age, 
+            gender, 
+            panCard, 
+            aadhaarCard, 
+            registrationNumber: registrationNumber || '',
+            mbbsDegreeFileUrl,
+            pgDegreeFileUrl,
+            signatureFileUrl,
+            degreeFileUrl, 
+            address, 
+            phoneNumber, 
+            reportFee 
+        }, { transaction: t });
 
         await t.commit();
         res.status(201).json({ message: 'Doctor registration submitted successfully.' });

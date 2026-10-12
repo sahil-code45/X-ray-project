@@ -19,5 +19,7 @@ router.post('/claim/:id', verifyRole('doctor'), caseController.claimCase);
 // router.get('/:id/dicom-metadata', verifyRole('doctor'), reportController.getDicomMetadata);
 // router.get('/:id/dicom-stream', verifyRole('doctor'), reportController.streamDicom);
 router.post('/:id/report', verifyRole('doctor'), reportController.submitReport);
+router.post('/:id/report-issue', verifyRole('doctor'), caseController.reportIssue);
+router.post('/:id/reupload', verifyRole('admin', 'center'), upload.single('dicomFile'), caseController.reuploadCaseFile);
 
 module.exports = router;

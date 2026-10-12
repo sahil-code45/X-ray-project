@@ -1,9 +1,24 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { API_BASE_URL } from '../config';
+
+const getSignatureUrl = (filePath) => {
+  if (!filePath) return '';
+  const normalized = filePath.replace(/\\/g, '/');
+  if (normalized.startsWith('http://') || normalized.startsWith('https://')) return normalized;
+  const uploadsIdx = normalized.toLowerCase().indexOf('uploads/');
+  if (uploadsIdx !== -1) {
+    return `${API_BASE_URL}/${normalized.substring(uploadsIdx)}`;
+  }
+  const clean = normalized.replace(/^\/+/, '');
+  return `${API_BASE_URL}/uploads/${clean}`;
+};
 
 export default function ReportViewer({ reportData }) {
   if (!reportData || !reportData.report) return null;
 
-  const { patientId, patientName, patientAge, patientGender, id, doctor, report } = reportData;
+  const [hasSigError, setHasSigError] = useState(false);
+  const { patientId, patientName, patientAge, patientGender, id, report } = reportData;
+  const doctor = reportData.doctor || report?.doctor;
   const createdAt = new Date(report.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
 
   return (
@@ -81,19 +96,43 @@ export default function ReportViewer({ reportData }) {
           
           <div className="text-right flex flex-col items-end">
             <div className="text-sm mb-1 text-gray-700">Reported By,</div>
+            
             {/* Authentic Radiologist Signature */}
-            <div className="h-12 flex items-center justify-end mb-1">
-              <svg className="h-10 w-36 object-contain opacity-85" viewBox="0 0 160 50" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M10 38C22 34 32 12 42 16C50 19 48 38 60 34C70 30 78 14 90 22C98 27 104 36 116 30C125 25 135 15 150 18" stroke="#0f172a" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M25 42C48 40 75 41 110 38C125 36 142 37 155 39" stroke="#0f172a" strokeWidth="1.8" strokeLinecap="round"/>
-                <path d="M38 10C40 22 39 34 36 44" stroke="#0f172a" strokeWidth="2" strokeLinecap="round"/>
-                <path d="M75 12C77 24 76 33 74 41" stroke="#0f172a" strokeWidth="1.8" strokeLinecap="round"/>
-              </svg>
+            <div className="h-14 min-w-[140px] max-w-[200px] flex items-center justify-end mb-1 overflow-hidden">
+              {doctor?.doctorProfile?.signatureFileUrl && !hasSigError ? (
+                <img 
+                  src={getSignatureUrl(doctor.doctorProfile.signatureFileUrl)} 
+                  alt="Doctor Signature" 
+                  crossOrigin="anonymous"
+                  onError={() => setHasSigError(true)}
+                  className="max-h-14 max-w-[180px] w-auto h-auto object-contain mix-blend-multiply filter contrast-125 select-none"
+                />
+              ) : (
+                <svg className="h-10 w-36 object-contain opacity-85" viewBox="0 0 160 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M10 38C22 34 32 12 42 16C50 19 48 38 60 34C70 30 78 14 90 22C98 27 104 36 116 30C125 25 135 15 150 18" stroke="#0f172a" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M25 42C48 40 75 41 110 38C125 36 142 37 155 39" stroke="#0f172a" strokeWidth="1.8" strokeLinecap="round"/>
+                  <path d="M38 10C40 22 39 34 36 44" stroke="#0f172a" strokeWidth="2" strokeLinecap="round"/>
+                  <path d="M75 12C77 24 76 33 74 41" stroke="#0f172a" strokeWidth="1.8" strokeLinecap="round"/>
+                </svg>
+              )}
             </div>
-            <div className="font-bold text-lg text-gray-900">{doctor?.doctorProfile?.name || doctor?.email || 'Dr. Signature'}</div>
-            <div className="text-sm text-gray-700">MBBS, MD</div>
+
+            <div className="font-bold text-lg text-gray-900 leading-tight">
+              {doctor?.doctorProfile?.name 
+                ? (doctor.doctorProfile.name.trim().toLowerCase().startsWith('dr.') 
+                    ? doctor.doctorProfile.name 
+                    : `Dr. ${doctor.doctorProfile.name}`) 
+                : (doctor?.email ? `Dr. ${doctor.email.split('@')[0]}` : 'Dr. Radiologist')}
+            </div>
+            <div className="text-sm text-gray-700">
+              {doctor?.doctorProfile?.pgDegreeFileUrl ? 'MBBS, MD / DNB (Radiology)' : 'MBBS (Radiology)'}
+            </div>
             <div className="text-sm text-gray-700">Consultant Radiologist</div>
-            <div className="text-sm text-gray-700">MCI - 16033</div>
+            <div className="text-sm text-gray-700">
+              {doctor?.doctorProfile?.registrationNumber 
+                ? `Reg No: ${doctor.doctorProfile.registrationNumber}` 
+                : 'MCI - 16033'}
+            </div>
           </div>
         </div>
 

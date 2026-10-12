@@ -184,6 +184,11 @@ export default function DoctorOpenPool() {
                         {c.patientId}
                       </span>
                     )}
+                    {c.isModified && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-extrabold bg-amber-100 text-amber-800 border border-amber-300 shadow-xs">
+                        Modify
+                      </span>
+                    )}
                   </div>
                   <div className="text-sm text-gray-500 mt-0.5">{c.patientAge} Yrs / {c.patientGender}</div>
                 </td>

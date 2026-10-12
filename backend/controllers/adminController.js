@@ -87,7 +87,7 @@ exports.getAllCases = async (req, res) => {
                     model: User,
                     as: 'doctor',
                     attributes: ['id', 'email'],
-                    include: [{ model: DoctorProfile, as: 'doctorProfile', attributes: ['name'] }]
+                    include: [{ model: DoctorProfile, as: 'doctorProfile' }]
                 },
                 {
                     model: Report,

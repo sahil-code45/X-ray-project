@@ -4,6 +4,18 @@ import { API_BASE_URL } from '../config';
 import { Link, useNavigate } from 'react-router-dom';
 import AdminNav from '../components/AdminNav';
 
+const getDocumentUrl = (filePath) => {
+  if (!filePath) return '';
+  const normalized = filePath.replace(/\\/g, '/');
+  if (normalized.startsWith('http://') || normalized.startsWith('https://')) return normalized;
+  const uploadsIdx = normalized.toLowerCase().indexOf('uploads/');
+  if (uploadsIdx !== -1) {
+    return `${API_BASE_URL}/${normalized.substring(uploadsIdx)}`;
+  }
+  const clean = normalized.replace(/^\/+/, '');
+  return `${API_BASE_URL}/uploads/${clean}`;
+};
+
 export default function AdminDashboard() {
   const [users, setUsers] = useState([]);
   const [approvedUsers, setApprovedUsers] = useState([]);
@@ -120,8 +132,14 @@ export default function AdminDashboard() {
                           {u.doctorProfile?.name?.charAt(0) || 'D'}
                         </div>
                         <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">{u.doctorProfile?.name || 'N/A'}</div>
-                          <div className="text-sm text-gray-500 capitalize">{u.role} Account</div>
+                          <div className="text-sm font-bold text-gray-900">{u.doctorProfile?.name || 'N/A'}</div>
+                          {u.doctorProfile?.registrationNumber ? (
+                            <div className="text-xs font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 inline-block mt-0.5">
+                              Reg No: {u.doctorProfile.registrationNumber}
+                            </div>
+                          ) : (
+                            <div className="text-xs text-gray-500 capitalize">{u.role} Account</div>
+                          )}
                         </div>
                       </div>
                     </td>
@@ -131,21 +149,49 @@ export default function AdminDashboard() {
                     </td>
                     <td className="px-6 py-5 whitespace-nowrap">
                       <div className="text-sm font-bold text-green-600 mb-1">Fee: ₹{u.doctorProfile?.reportFee || 0}</div>
-                      <div className="text-sm text-gray-900"><span className="font-medium">PAN:</span> {u.doctorProfile?.panCard}</div>
-                      <div className="text-sm text-gray-900"><span className="font-medium">Aadhaar:</span> {u.doctorProfile?.aadhaarCard}</div>
-                      {u.role === 'doctor' && u.doctorProfile?.degreeFileUrl && (
-                        <button
-                          type="button"
-                          onClick={() => setSelectedDegree({
-                            url: `${API_BASE_URL}/${u.doctorProfile.degreeFileUrl.replace(/\\/g, '/')}`,
-                            doctorName: u.doctorProfile?.name || u.email
-                          })}
-                          className="mt-1 inline-flex items-center text-xs text-indigo-600 hover:text-indigo-900 font-semibold bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg border border-indigo-200 transition shadow-sm cursor-pointer"
-                        >
-                          <svg className="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
-                          View Degree
-                        </button>
-                      )}
+                      <div className="text-xs text-gray-600"><span className="font-medium text-gray-500">PAN:</span> {u.doctorProfile?.panCard}</div>
+                      <div className="text-xs text-gray-600"><span className="font-medium text-gray-500">Aadhaar:</span> {u.doctorProfile?.aadhaarCard}</div>
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {(u.doctorProfile?.mbbsDegreeFileUrl || u.doctorProfile?.degreeFileUrl) && (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedDegree({
+                              url: getDocumentUrl(u.doctorProfile.mbbsDegreeFileUrl || u.doctorProfile.degreeFileUrl),
+                              doctorName: u.doctorProfile?.name || u.email,
+                              title: 'MBBS Degree Certificate'
+                            })}
+                            className="inline-flex items-center text-xs text-indigo-600 hover:text-indigo-900 font-semibold bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded-md border border-indigo-200 transition shadow-sm cursor-pointer"
+                          >
+                            📜 MBBS Degree
+                          </button>
+                        )}
+                        {u.doctorProfile?.pgDegreeFileUrl && (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedDegree({
+                              url: getDocumentUrl(u.doctorProfile.pgDegreeFileUrl),
+                              doctorName: u.doctorProfile?.name || u.email,
+                              title: 'PG Degree / Specialization'
+                            })}
+                            className="inline-flex items-center text-xs text-purple-600 hover:text-purple-900 font-semibold bg-purple-50 hover:bg-purple-100 px-2 py-0.5 rounded-md border border-purple-200 transition shadow-sm cursor-pointer"
+                          >
+                            🎓 PG Degree
+                          </button>
+                        )}
+                        {u.doctorProfile?.signatureFileUrl && (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedDegree({
+                              url: getDocumentUrl(u.doctorProfile.signatureFileUrl),
+                              doctorName: u.doctorProfile?.name || u.email,
+                              title: 'Doctor Digital Signature'
+                            })}
+                            className="inline-flex items-center text-xs text-emerald-600 hover:text-emerald-900 font-semibold bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-md border border-emerald-200 transition shadow-sm cursor-pointer"
+                          >
+                            ✍️ Signature
+                          </button>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-5 whitespace-nowrap text-right text-sm font-medium space-x-3">
                       <button onClick={() => handleAction(u.id, 'approve')} className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all">
@@ -286,11 +332,11 @@ export default function AdminDashboard() {
             <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-xl shadow-inner">
-                  📜
+                  {selectedDegree.title?.includes('Signature') ? '✍️' : (selectedDegree.title?.includes('PG') ? '🎓' : '📜')}
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-gray-900">
-                    Medical Degree / Registration Certificate
+                    {selectedDegree.title || 'Medical Degree / Registration Certificate'}
                   </h3>
                   <p className="text-xs text-gray-500 font-medium">
                     {selectedDegree.doctorName}

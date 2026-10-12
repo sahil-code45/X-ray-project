@@ -4,9 +4,14 @@ const cors = require('cors');
 
 const app = express();
 const path = require('path');
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-app.use(express.json());
 app.use(cors());
+app.use(express.json());
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+  setHeaders: (res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  }
+}));
 
 const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
@@ -81,6 +86,53 @@ app.listen(PORT, async () => {
     try {
       await sequelize.query(`ALTER TABLE "XrayCases" ADD COLUMN IF NOT EXISTS "centerId" INTEGER;`);
     } catch (e) {}
+    try {
+      await sequelize.query(`ALTER TABLE "XrayCases" ADD COLUMN IF NOT EXISTS "issueDescription" TEXT;`);
+    } catch (e) {}
+    try {
+      await sequelize.query(`ALTER TABLE "XrayCases" ADD COLUMN IF NOT EXISTS "isModified" BOOLEAN DEFAULT FALSE;`);
+    } catch (e) {}
+    try {
+      await sequelize.query(`ALTER TABLE "DoctorProfiles" ADD COLUMN IF NOT EXISTS "registrationNumber" VARCHAR(255);`);
+    } catch (e) {}
+    try {
+      await sequelize.query(`ALTER TABLE "DoctorProfiles" ADD COLUMN IF NOT EXISTS "mbbsDegreeFileUrl" VARCHAR(255);`);
+    } catch (e) {}
+    try {
+      await sequelize.query(`ALTER TABLE "DoctorProfiles" ADD COLUMN IF NOT EXISTS "pgDegreeFileUrl" VARCHAR(255);`);
+    } catch (e) {}
+    try {
+      await sequelize.query(`ALTER TABLE "DoctorProfiles" ADD COLUMN IF NOT EXISTS "signatureFileUrl" VARCHAR(255);`);
+    } catch (e) {}
+    try {
+      await sequelize.query(`ALTER TABLE "DoctorProfiles" ALTER COLUMN "degreeFileUrl" DROP NOT NULL;`);
+    } catch (e) {}
+
+    // Normalize any existing DoctorProfile file paths to relative 'uploads/filename'
+    try {
+      const allDocs = await DoctorProfile.findAll();
+      for (const d of allDocs) {
+        let changed = false;
+        ['mbbsDegreeFileUrl', 'pgDegreeFileUrl', 'signatureFileUrl', 'degreeFileUrl'].forEach(col => {
+          if (d[col]) {
+            const norm = d[col].replace(/\\/g, '/');
+            const idx = norm.toLowerCase().indexOf('uploads/');
+            if (idx !== -1) {
+              const rel = norm.substring(idx);
+              if (d[col] !== rel) {
+                d[col] = rel;
+                changed = true;
+              }
+            }
+          }
+        });
+        if (changed) {
+          await d.save();
+        }
+      }
+    } catch (e) {
+      console.warn('Doc profile path cleanup warning:', e.message);
+    }
 
     // Ensure default Diagnostic Center exists
     const [centerUser, centerCreated] = await User.findOrCreate({

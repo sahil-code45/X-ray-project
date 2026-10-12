@@ -6,15 +6,29 @@ import { API_BASE_URL } from '../config';
 export default function RegisterDoctor() {
   const [isLogin, setIsLogin] = useState(false);
   const [formData, setFormData] = useState({
-    name: '', email: '', password: '', age: '', gender: 'Male', panCard: '', aadhaarCard: '', address: '', phoneNumber: '', reportFee: ''
+    name: '', email: '', password: '', age: '', gender: 'Male', registrationNumber: '', panCard: '', aadhaarCard: '', address: '', phoneNumber: '', reportFee: ''
   });
-  const [degreeFile, setDegreeFile] = useState(null);
+  const [mbbsDegreeFile, setMbbsDegreeFile] = useState(null);
+  const [pgDegreeFile, setPgDegreeFile] = useState(null);
+  const [signatureFile, setSignatureFile] = useState(null);
+  const [signaturePreview, setSignaturePreview] = useState(null);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
-  const handleFileChange = (e) => setDegreeFile(e.target.files[0]);
+
+  const handleSignatureChange = (e) => {
+    const file = e.target.files[0];
+    setSignatureFile(file);
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (ev) => setSignaturePreview(ev.target.result);
+      reader.readAsDataURL(file);
+    } else {
+      setSignaturePreview(null);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -35,7 +49,12 @@ export default function RegisterDoctor() {
         // Doctor Registration
         const data = new FormData();
         Object.keys(formData).forEach(key => data.append(key, formData[key]));
-        if (degreeFile) data.append('degreeFile', degreeFile);
+        if (mbbsDegreeFile) {
+          data.append('mbbsDegreeFile', mbbsDegreeFile);
+          data.append('degreeFile', mbbsDegreeFile); // For compatibility
+        }
+        if (pgDegreeFile) data.append('pgDegreeFile', pgDegreeFile);
+        if (signatureFile) data.append('signatureFile', signatureFile);
 
         await axios.post(`${API_BASE_URL}/api/auth/register/doctor`, data);
         setMessage('Registration successful! Please wait for Admin approval.');
@@ -87,25 +106,25 @@ export default function RegisterDoctor() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                    <input type="text" name="name" required className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white" placeholder="Dr. John Doe" onChange={handleChange} />
+                    <input type="text" name="name" required className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white" placeholder="Dr. John Doe" value={formData.name} onChange={handleChange} />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
-                    <input type="email" name="email" required className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white" placeholder="doctor@example.com" onChange={handleChange} />
+                    <input type="email" name="email" required className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white" placeholder="doctor@example.com" value={formData.email} onChange={handleChange} />
                   </div>
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Create Password</label>
-                    <input type="password" name="password" required className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white" placeholder="••••••••" onChange={handleChange} />
+                    <input type="password" name="password" required className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white" placeholder="••••••••" value={formData.password} onChange={handleChange} />
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Age</label>
-                    <input type="number" name="age" required className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white" placeholder="35" onChange={handleChange} />
+                    <input type="number" name="age" required className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white" placeholder="35" value={formData.age} onChange={handleChange} />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
-                    <select name="gender" className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white" onChange={handleChange}>
+                    <select name="gender" value={formData.gender} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white" onChange={handleChange}>
                       <option>Male</option>
                       <option>Female</option>
                       <option>Other</option>
@@ -113,32 +132,118 @@ export default function RegisterDoctor() {
                   </div>
 
                   <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Registration Number (MCI / State Council) <span className="text-red-500">*</span>
+                    </label>
+                    <input 
+                      type="text" 
+                      name="registrationNumber" 
+                      required 
+                      className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white font-medium" 
+                      placeholder="e.g. MCI-123456 or DMC/R/9876" 
+                      value={formData.registrationNumber} 
+                      onChange={handleChange} 
+                    />
+                  </div>
+
+                  <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">PAN Card Number</label>
-                    <input type="text" name="panCard" required className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white" placeholder="ABCDE1234F" onChange={handleChange} />
+                    <input type="text" name="panCard" required className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white" placeholder="ABCDE1234F" value={formData.panCard} onChange={handleChange} />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Aadhaar Card Number</label>
-                    <input type="text" name="aadhaarCard" required className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white" placeholder="1234 5678 9012" onChange={handleChange} />
+                    <input type="text" name="aadhaarCard" required className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white" placeholder="1234 5678 9012" value={formData.aadhaarCard} onChange={handleChange} />
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-                    <input type="text" name="phoneNumber" required className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white" placeholder="+91 9876543210" onChange={handleChange} />
+                    <input type="text" name="phoneNumber" required className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white" placeholder="+91 9876543210" value={formData.phoneNumber} onChange={handleChange} />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Report Fee (₹)</label>
-                    <input type="number" name="reportFee" required className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white" placeholder="e.g. 500" onChange={handleChange} />
+                    <input type="number" name="reportFee" required className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white" placeholder="e.g. 500" value={formData.reportFee} onChange={handleChange} />
                   </div>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Full Clinic / Home Address</label>
-                  <textarea name="address" required rows="2" className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white" placeholder="Enter your full address" onChange={handleChange}></textarea>
+                  <textarea name="address" required rows="2" className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-gray-50 focus:bg-white" placeholder="Enter your full address" value={formData.address} onChange={handleChange}></textarea>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Medical Degree File (PDF/Image)</label>
-                  <input type="file" name="degreeFile" required className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-gray-50 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" onChange={handleFileChange} />
+                {/* Medical Qualifications & Signature Uploads */}
+                <div className="pt-4 border-t border-gray-200 space-y-4">
+                  <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <span>📑</span> Medical Credentials & Documents
+                  </h3>
+
+                  {/* MBBS Degree Certificate */}
+                  <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                    <label className="block text-sm font-bold text-gray-800 mb-1">
+                      MBBS Degree Certificate (Image / PDF) <span className="text-red-500">*</span>
+                    </label>
+                    <p className="text-xs text-gray-500 mb-2">Upload your official MBBS degree or pass certificate.</p>
+                    <input 
+                      type="file" 
+                      name="mbbsDegreeFile" 
+                      required 
+                      accept=".pdf,image/*" 
+                      className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm file:mr-4 file:py-1.5 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer" 
+                      onChange={(e) => setMbbsDegreeFile(e.target.files[0])} 
+                    />
+                    {mbbsDegreeFile && (
+                      <span className="text-xs text-emerald-600 font-semibold mt-1.5 inline-block">
+                        ✓ Selected: {mbbsDegreeFile.name}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* PG Degree Certificate */}
+                  <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-sm font-bold text-gray-800">
+                        PG Degree / Diploma Certificate (MD / DNB / DMRD)
+                      </label>
+                      <span className="text-[11px] text-gray-500 font-medium bg-gray-200/80 px-2 py-0.5 rounded">Optional</span>
+                    </div>
+                    <p className="text-xs text-gray-500 mb-2">Upload your MD, DNB, DMRD or relevant radiology specialization certificate.</p>
+                    <input 
+                      type="file" 
+                      name="pgDegreeFile" 
+                      accept=".pdf,image/*" 
+                      className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm file:mr-4 file:py-1.5 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer" 
+                      onChange={(e) => setPgDegreeFile(e.target.files[0])} 
+                    />
+                    {pgDegreeFile && (
+                      <span className="text-xs text-emerald-600 font-semibold mt-1.5 inline-block">
+                        ✓ Selected: {pgDegreeFile.name}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Signature Image Upload */}
+                  <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-sm font-bold text-gray-800">
+                        Doctor Digital Signature (PNG / JPG) <span className="text-red-500">*</span>
+                      </label>
+                      <span className="text-[11px] text-indigo-700 font-semibold bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">For Report PDF</span>
+                    </div>
+                    <p className="text-xs text-gray-500 mb-2">Upload a clear photo or scan of your signature on white paper.</p>
+                    <input 
+                      type="file" 
+                      name="signatureFile" 
+                      required 
+                      accept="image/png,image/jpeg,image/jpg" 
+                      className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm file:mr-4 file:py-1.5 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer" 
+                      onChange={handleSignatureChange} 
+                    />
+                    {signaturePreview && (
+                      <div className="mt-3 p-2.5 bg-white rounded-lg border border-gray-200 inline-block shadow-sm">
+                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Signature Preview:</p>
+                        <img src={signaturePreview} alt="Signature Preview" className="h-14 max-w-[200px] object-contain border border-dashed border-gray-300 p-1 rounded bg-white" />
+                      </div>
+                    )}
+                  </div>
                 </div>
               </>
             )}

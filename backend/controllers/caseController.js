@@ -88,7 +88,7 @@ exports.getCenterCases = async (req, res) => {
                     model: User,
                     as: 'doctor',
                     attributes: ['id', 'email'],
-                    include: [{ model: DoctorProfile, as: 'doctorProfile', attributes: ['name', 'phoneNumber'] }]
+                    include: [{ model: DoctorProfile, as: 'doctorProfile' }]
                 },
                 {
                     model: Report,
@@ -117,10 +117,18 @@ exports.getAvailableCases = async (req, res) => {
             order: [['updatedAt', 'DESC']]
         });
 
-        const { Report } = require('../models');
+        const { Report, User, DoctorProfile } = require('../models');
         const completedCases = await XrayCase.findAll({
             where: { status: 'completed', assignedDoctorId: doctorId },
-            include: [{ model: Report, as: 'report' }],
+            include: [
+                { model: Report, as: 'report' },
+                {
+                    model: User,
+                    as: 'doctor',
+                    attributes: ['id', 'email'],
+                    include: [{ model: DoctorProfile, as: 'doctorProfile' }]
+                }
+            ],
             order: [['updatedAt', 'DESC']]
         });
 
@@ -135,9 +143,17 @@ exports.getAvailableCases = async (req, res) => {
 exports.getCaseById = async (req, res) => {
     try {
         const { id } = req.params;
-        const { Report } = require('../models');
+        const { Report, User, DoctorProfile } = require('../models');
         const xrayCase = await XrayCase.findByPk(id, {
-            include: [{ model: Report, as: 'report' }]
+            include: [
+                { model: Report, as: 'report' },
+                {
+                    model: User,
+                    as: 'doctor',
+                    attributes: ['id', 'email'],
+                    include: [{ model: DoctorProfile, as: 'doctorProfile' }]
+                }
+            ]
         });
         if (!xrayCase) return res.status(404).json({ message: 'Case not found' });
         res.json(xrayCase);
@@ -212,5 +228,102 @@ exports.downloadCaseFiles = async (req, res) => {
     } catch (error) {
         console.error('Download error:', error);
         if (!res.headersSent) res.status(500).json({ error: error.message });
+    }
+};
+
+exports.reportIssue = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { issueDescription } = req.body;
+
+        if (!issueDescription || !issueDescription.trim()) {
+            return res.status(400).json({ message: 'Issue description is required' });
+        }
+
+        const xrayCase = await XrayCase.findByPk(id);
+        if (!xrayCase) {
+            return res.status(404).json({ message: 'Case not found' });
+        }
+
+        xrayCase.status = 'something_wrong';
+        xrayCase.issueDescription = issueDescription.trim();
+        await xrayCase.save();
+
+        res.json({ message: 'Issue reported to center successfully', case: xrayCase });
+    } catch (error) {
+        console.error('Error reporting issue:', error);
+        res.status(500).json({ error: error.message });
+    }
+};
+
+exports.reuploadCaseFile = async (req, res) => {
+    console.log('--- Reupload request received for case:', req.params.id);
+    try {
+        const { id } = req.params;
+        const xrayCase = await XrayCase.findByPk(id);
+        if (!xrayCase) {
+            return res.status(404).json({ message: 'Case not found' });
+        }
+
+        const { patientName, patientId, patientAge, patientGender, studyNotes } = req.body;
+
+        if (patientName && patientName.trim()) {
+            xrayCase.patientName = patientName.trim();
+        }
+        if (patientId !== undefined) {
+            xrayCase.patientId = patientId ? patientId.trim() : null;
+        }
+        if (patientAge !== undefined && patientAge !== '') {
+            xrayCase.patientAge = parseInt(patientAge) || xrayCase.patientAge;
+        }
+        if (patientGender && patientGender.trim()) {
+            xrayCase.patientGender = patientGender.trim();
+        }
+        if (studyNotes !== undefined) {
+            xrayCase.studyNotes = studyNotes;
+        }
+
+        let dicomFileUrl = req.file ? req.file.path : null;
+        if (dicomFileUrl) {
+            let extractedDir = null;
+            if (dicomFileUrl.toLowerCase().endsWith('.zip')) {
+                extractedDir = path.join(__dirname, '..', 'uploads', `extracted_${Date.now()}`);
+                console.log('Starting extraction to:', extractedDir);
+                await extract(path.resolve(dicomFileUrl), { dir: path.resolve(extractedDir) });
+
+                const extractAllZips = async (dir) => {
+                    const files = fs.readdirSync(dir);
+                    for (const file of files) {
+                        const fullPath = path.join(dir, file);
+                        if (fs.statSync(fullPath).isDirectory()) {
+                            await extractAllZips(fullPath);
+                        } else if (file.toLowerCase().endsWith('.zip')) {
+                            const dest = path.join(dir, file.substring(0, file.length - 4));
+                            try {
+                                await extract(fullPath, { dir: dest });
+                                fs.unlinkSync(fullPath);
+                                await extractAllZips(dest);
+                            } catch (err) {
+                                console.error('Failed to extract nested zip:', err);
+                            }
+                        }
+                    }
+                };
+                await extractAllZips(extractedDir);
+                dicomFileUrl = extractedDir;
+            }
+            xrayCase.dicomFileUrl = dicomFileUrl;
+        }
+
+        xrayCase.status = 'uploaded';
+        xrayCase.isModified = true;
+        xrayCase.assignedDoctorId = null;
+        xrayCase.lockedAt = null;
+        await xrayCase.save();
+
+        res.json({ message: 'Corrected study and patient details updated successfully', case: xrayCase });
+    } catch (error) {
+        console.error('Re-upload error:', error);
+        res.status(500).json({ error: error.message });
     }
 };

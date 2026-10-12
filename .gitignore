@@ -40,3 +40,7 @@ yarn-error.log*
 # Gemini / AI tools
 .gemini/
 
+# Temporary test archives & scripts
+*.zip
+fix_urls.js
+

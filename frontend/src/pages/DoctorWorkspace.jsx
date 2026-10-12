@@ -7,9 +7,9 @@ import * as cornerstone from 'cornerstone-core';
 import * as cornerstoneMath from 'cornerstone-math';
 import * as cornerstoneTools from 'cornerstone-tools';
 import cornerstoneWADOImageLoader from 'cornerstone-wado-image-loader';
-import dicomParser from 'dicom-parser';
 import Hammer from 'hammerjs';
 import { CT_TEMPLATES } from '../utils/ctTemplates';
+import { MRI_TEMPLATES } from '../utils/mriTemplates';
 
 const SimpleEditor = ({ value, onChange, minHeight = '120px' }) => {
   const editorRef = useRef(null);
@@ -71,6 +71,11 @@ export default function DoctorWorkspace() {
   const [allImageIds, setAllImageIds] = useState([]);
   const [isCT, setIsCT] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
+  const [isMRI, setIsMRI] = useState(false);
+  const [selectedMriTemplateId, setSelectedMriTemplateId] = useState('');
+  const [isSomethingWrong, setIsSomethingWrong] = useState(false);
+  const [issueText, setIssueText] = useState('');
+  const [submittingIssue, setSubmittingIssue] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -261,6 +266,46 @@ export default function DoctorWorkspace() {
     }
   };
 
+  const handleMriTemplateChange = (e) => {
+    const id = e.target.value;
+    setSelectedMriTemplateId(id);
+    if (id) {
+      const template = MRI_TEMPLATES.find(t => t.id === parseInt(id));
+      if (template) {
+        const combined = `${template.findings || ''}<br/><p><strong>IMPRESSION</strong></p>${template.impression || ''}`;
+        setFormData({
+          ...formData,
+          clinicalFindings: combined,
+          impression: '',
+          recommendations: ''
+        });
+      }
+    }
+  };
+
+  const handleReportIssue = async () => {
+    if (!issueText.trim()) {
+      toast.warning('Please describe the problem with the document before submitting.');
+      return;
+    }
+    setSubmittingIssue(true);
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${API_BASE_URL}/api/cases/${id}/report-issue`, {
+        issueDescription: issueText.trim()
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success('Document issue reported to center successfully! The case has been sent for re-upload.');
+      navigate('/doctor');
+    } catch (err) {
+      console.error(err);
+      toast.error(err.response?.data?.message || 'Failed to submit issue');
+    } finally {
+      setSubmittingIssue(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen bg-gray-900 overflow-hidden">
       {/* Top Workspace Header Bar */}
@@ -297,6 +342,12 @@ export default function DoctorWorkspace() {
         </div>
 
         <div className="flex items-center gap-3">
+          {caseDetails?.isModified && (
+            <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs px-3 py-1 rounded-full font-bold flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+              Modify
+            </span>
+          )}
           {caseDetails?.report ? (
             <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs px-3 py-1 rounded-full font-bold flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
@@ -397,8 +448,26 @@ export default function DoctorWorkspace() {
 
           {message && <p className="mb-4 text-blue-600 text-center font-semibold">{message}</p>}
           
+          {caseDetails?.isModified && (
+            <div className="bg-amber-50 border border-amber-300 text-amber-900 p-4 rounded-xl mb-6 text-sm shadow-sm flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <span className="px-2.5 py-1 bg-amber-500 text-white font-extrabold rounded-md text-xs uppercase tracking-wider shadow-sm">
+                  Modify
+                </span>
+                <span className="font-semibold text-amber-900">
+                  This study was re-uploaded and modified by the center. Please review the updated document and create the report.
+                </span>
+              </div>
+              {caseDetails?.issueDescription && (
+                <span className="text-xs text-amber-700 italic hidden sm:inline">
+                  Previous issue: "{caseDetails.issueDescription}"
+                </span>
+              )}
+            </div>
+          )}
+
           {/* CT Templates Selection */}
-          <div className="mb-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
+          <div className="mb-4 p-4 bg-gray-50 rounded-xl border border-gray-200">
             <label className="flex items-center space-x-2 text-sm font-bold text-gray-800 cursor-pointer">
               <input 
                 type="checkbox" 
@@ -406,6 +475,10 @@ export default function DoctorWorkspace() {
                 onChange={(e) => {
                   setIsCT(e.target.checked);
                   if (!e.target.checked) setSelectedTemplateId('');
+                  if (e.target.checked) {
+                    setIsMRI(false);
+                    setSelectedMriTemplateId('');
+                  }
                 }} 
                 className="w-5 h-5 text-cyan-600 border-gray-300 rounded focus:ring-cyan-500"
               />
@@ -429,6 +502,93 @@ export default function DoctorWorkspace() {
                     Template loaded into editor below. You can now edit the contents.
                   </p>
                 )}
+              </div>
+            )}
+          </div>
+
+          {/* MRI Templates Selection */}
+          <div className="mb-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
+            <label className="flex items-center space-x-2 text-sm font-bold text-gray-800 cursor-pointer">
+              <input 
+                type="checkbox" 
+                checked={isMRI} 
+                onChange={(e) => {
+                  setIsMRI(e.target.checked);
+                  if (!e.target.checked) setSelectedMriTemplateId('');
+                  if (e.target.checked) {
+                    setIsCT(false);
+                    setSelectedTemplateId('');
+                  }
+                }} 
+                className="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+              />
+              <span>Use MRI Report Templates</span>
+            </label>
+            
+            {isMRI && (
+              <div className="mt-3">
+                <select 
+                  value={selectedMriTemplateId} 
+                  onChange={handleMriTemplateChange}
+                  className="w-full p-3 border border-gray-300 rounded-lg text-sm bg-white focus:ring-indigo-500 focus:border-indigo-500 shadow-sm"
+                >
+                  <option value="">-- Select MRI Template Format --</option>
+                  {MRI_TEMPLATES.map(template => (
+                    <option key={template.id} value={template.id}>{template.name}</option>
+                  ))}
+                </select>
+                {selectedMriTemplateId && (
+                  <p className="text-xs text-indigo-700 mt-2 font-medium bg-indigo-50 p-2 rounded border border-indigo-100 text-center">
+                    Template loaded into editor below. You can now edit the contents.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Something Wrong Flagging */}
+          <div className="mb-6 p-4 bg-red-50/50 rounded-xl border border-red-200">
+            <label className="flex items-center space-x-2 text-sm font-bold text-red-900 cursor-pointer">
+              <input 
+                type="checkbox" 
+                checked={isSomethingWrong} 
+                onChange={(e) => {
+                  setIsSomethingWrong(e.target.checked);
+                  if (!e.target.checked) setIssueText('');
+                }} 
+                className="w-5 h-5 text-red-600 border-gray-300 rounded focus:ring-red-500"
+              />
+              <span className="flex items-center gap-1.5">
+                <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                Something Wrong
+              </span>
+            </label>
+
+            {isSomethingWrong && (
+              <div className="mt-3 space-y-3">
+                <p className="text-xs text-red-700">
+                  Describe what is wrong with the uploaded document/scan (e.g. wrong patient, missing slices, poor quality, wrong body part) to notify the center:
+                </p>
+                <textarea
+                  rows="3"
+                  value={issueText}
+                  onChange={(e) => setIssueText(e.target.value)}
+                  placeholder="Explain what is wrong with the document..."
+                  className="w-full p-3 border border-red-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-red-500 focus:border-red-500 shadow-sm"
+                />
+                <button
+                  type="button"
+                  onClick={handleReportIssue}
+                  disabled={submittingIssue}
+                  className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg text-sm shadow-md transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  {submittingIssue ? 'Submitting Issue...' : 'Submit Issue to Center'}
+                </button>
               </div>
             )}
           </div>

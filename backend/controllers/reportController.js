@@ -170,7 +170,8 @@ exports.submitReport = async (req, res) => {
         // Hospital Branding & Doctor Details
         doc.fontSize(20).text('Tele-Radiology Diagnosis Report', { align: 'center' });
         doc.moveDown();
-        doc.fontSize(12).text(`Doctor: ${doctorProfile ? doctorProfile.name : 'Radiologist'} | Reg No: ${doctorProfile ? doctorProfile.panCard : 'N/A'}`);
+        const docRegNo = (doctorProfile && doctorProfile.registrationNumber) || (doctorProfile ? doctorProfile.panCard : 'N/A');
+        doc.fontSize(12).text(`Doctor: ${doctorProfile ? doctorProfile.name : 'Radiologist'} | Reg No: ${docRegNo}`);
         const patientIdLabel = xrayCase.patientId ? ` | ID: ${xrayCase.patientId}` : '';
         doc.text(`Patient: ${xrayCase.patientName}${patientIdLabel} | Age: ${xrayCase.patientAge} | Gender: ${xrayCase.patientGender}`);
         doc.moveDown();
@@ -185,8 +186,25 @@ exports.submitReport = async (req, res) => {
 
         doc.fontSize(14).text('Recommendations:', { underline: true });
         doc.fontSize(12).text(stripHtml(recommendations) || 'No recommendations recorded');
-        doc.moveDown(2);
+        doc.moveDown(1.5);
         
+        // If doctor has an uploaded signature image, include it in the report
+        if (doctorProfile && doctorProfile.signatureFileUrl) {
+            try {
+                const sigFullPath = path.resolve(doctorProfile.signatureFileUrl);
+                if (fs.existsSync(sigFullPath)) {
+                    // Check if it's an image file
+                    const ext = path.extname(sigFullPath).toLowerCase();
+                    if (['.png', '.jpg', '.jpeg'].includes(ext)) {
+                        doc.image(sigFullPath, { fit: [140, 50], align: 'center' });
+                        doc.moveDown(0.3);
+                    }
+                }
+            } catch (sigErr) {
+                console.error("Signature image rendering error in PDF:", sigErr);
+            }
+        }
+
         doc.fontSize(10).text('Electronically signed via Tele-Radiology Platform', { align: 'center', italic: true });
         doc.end();
 
