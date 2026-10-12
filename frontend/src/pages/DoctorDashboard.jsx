@@ -239,13 +239,22 @@ export default function DoctorDashboard() {
                         {c.patientId}
                       </span>
                     )}
-                    {c.isModified && (
+                    {c.isReportWrong ? (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-extrabold bg-red-100 text-red-800 border border-red-300 animate-pulse">
+                        ⚠️ Something Wrong in Report
+                      </span>
+                    ) : c.isModified ? (
                       <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-extrabold bg-amber-100 text-amber-800 border border-amber-300">
                         Modify
                       </span>
-                    )}
+                    ) : null}
                   </div>
                   <div className="text-sm text-gray-500">{c.patientAge} Yrs / {c.patientGender}</div>
+                  {c.isReportWrong && c.reportIssueDescription && (
+                    <div className="mt-1.5 text-xs text-red-800 font-medium bg-red-50 p-1.5 rounded border border-red-200 max-w-sm">
+                      <strong className="text-red-900 font-bold">Center Issue:</strong> "{c.reportIssueDescription}"
+                    </div>
+                  )}
                 </td>
                 <td className="px-6 py-4">
                   <div className="text-sm text-gray-900 line-clamp-2">{c.studyNotes || '—'}</div>

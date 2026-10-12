@@ -23,6 +23,11 @@ module.exports = (sequelize, DataTypes) => {
     isModified: {
       type: DataTypes.BOOLEAN,
       defaultValue: false
+    },
+    reportIssueDescription: DataTypes.TEXT,
+    isReportWrong: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false
     }
   }, {
     sequelize,

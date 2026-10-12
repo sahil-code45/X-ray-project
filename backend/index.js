@@ -93,6 +93,12 @@ app.listen(PORT, async () => {
       await sequelize.query(`ALTER TABLE "XrayCases" ADD COLUMN IF NOT EXISTS "isModified" BOOLEAN DEFAULT FALSE;`);
     } catch (e) {}
     try {
+      await sequelize.query(`ALTER TABLE "XrayCases" ADD COLUMN IF NOT EXISTS "reportIssueDescription" TEXT;`);
+    } catch (e) {}
+    try {
+      await sequelize.query(`ALTER TABLE "XrayCases" ADD COLUMN IF NOT EXISTS "isReportWrong" BOOLEAN DEFAULT FALSE;`);
+    } catch (e) {}
+    try {
       await sequelize.query(`ALTER TABLE "DoctorProfiles" ADD COLUMN IF NOT EXISTS "registrationNumber" VARCHAR(255);`);
     } catch (e) {}
     try {

@@ -56,18 +56,25 @@ export default function DoctorPendingReports() {
   const paginatedCases = filteredCases.slice(startIndex, startIndex + pageSize);
 
   const modifiedCasesCount = pendingCases.filter(c => c.isModified).length;
+  const wrongReportCount = pendingCases.filter(c => c.isReportWrong).length;
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 min-h-[85vh] flex flex-col">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 border-b pb-5">
         <div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center flex-wrap gap-2.5">
             <h2 className="text-2xl font-black text-gray-900 tracking-tight">Pending Reports</h2>
             <span className="bg-amber-100 text-amber-800 text-xs font-extrabold px-3 py-1 rounded-full border border-amber-200 flex items-center gap-1.5 shadow-sm">
               <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
               {pendingCases.length} Pending
             </span>
+            {wrongReportCount > 0 && (
+              <span className="bg-red-100 text-red-800 text-xs font-extrabold px-3 py-1 rounded-full border border-red-300 flex items-center gap-1.5 shadow-sm animate-pulse">
+                <span className="w-2 h-2 rounded-full bg-red-600"></span>
+                {wrongReportCount} Revision Requested
+              </span>
+            )}
             {modifiedCasesCount > 0 && (
               <span className="bg-rose-100 text-rose-800 text-xs font-extrabold px-2.5 py-0.5 rounded-full border border-rose-200">
                 {modifiedCasesCount} Re-uploaded / Modify
@@ -177,13 +184,22 @@ export default function DoctorPendingReports() {
                             {c.patientId}
                           </span>
                         )}
-                        {c.isModified && (
+                        {c.isReportWrong ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-extrabold bg-red-100 text-red-800 border border-red-300 animate-pulse">
+                            ⚠️ Report Issue
+                          </span>
+                        ) : c.isModified ? (
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300">
                             Modify
                           </span>
-                        )}
+                        ) : null}
                       </div>
                       <div className="text-xs text-gray-500 mt-1">{c.patientAge} Yrs / {c.patientGender}</div>
+                      {c.isReportWrong && c.reportIssueDescription && (
+                        <div className="mt-1.5 text-xs text-red-800 font-medium bg-red-50 p-1.5 rounded border border-red-200 max-w-sm">
+                          <strong className="text-red-900 font-bold">Center Issue:</strong> "{c.reportIssueDescription}"
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm text-gray-800 max-w-md line-clamp-2">{c.studyNotes || '—'}</div>

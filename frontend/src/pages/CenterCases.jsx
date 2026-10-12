@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import ReportViewer from '../components/ReportViewer';
 import SomethingWrongModal from '../components/SomethingWrongModal';
 import { downloadReportPdf, openReportPdfInNewTab } from '../utils/downloadPdf';
@@ -14,9 +15,38 @@ export default function CenterCases() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedReport, setSelectedReport] = useState(null);
   const [somethingWrongCase, setSomethingWrongCase] = useState(null);
+  const [isSomethingWrongOpen, setIsSomethingWrongOpen] = useState(false);
+  const [wrongReportText, setWrongReportText] = useState('');
+  const [submittingWrongReport, setSubmittingWrongReport] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 10;
   const navigate = useNavigate();
+
+  const handleSubmitWrongReport = async () => {
+    if (!wrongReportText.trim()) {
+      toast.warning('Please describe the problem with this report before submitting.');
+      return;
+    }
+    try {
+      setSubmittingWrongReport(true);
+      const token = localStorage.getItem('token');
+      await axios.post(`${API_BASE_URL}/api/cases/${selectedReport.id}/report-wrong-report`, {
+        issueDescription: wrongReportText.trim()
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success('Report issue submitted to doctor successfully! The case has been sent for revision.');
+      setIsSomethingWrongOpen(false);
+      setWrongReportText('');
+      setSelectedReport(null);
+      fetchCases();
+    } catch (err) {
+      console.error(err);
+      toast.error(err.response?.data?.message || 'Failed to submit issue to doctor');
+    } finally {
+      setSubmittingWrongReport(false);
+    }
+  };
 
   const handleDownloadPdf = async () => {
     if (!selectedReport) return;
@@ -71,7 +101,10 @@ export default function CenterCases() {
       (c.patientName && c.patientName.toLowerCase().includes(q)) ||
       (c.patientId && c.patientId.toLowerCase().includes(q)) ||
       (c.studyNotes && c.studyNotes.toLowerCase().includes(q));
-    const matchesStatus = statusFilter === 'all' || c.status === statusFilter;
+    const matchesStatus = 
+      statusFilter === 'all' || 
+      (statusFilter === 'report_revision' ? c.isReportWrong : 
+      (statusFilter === 'in_progress' ? (c.status === 'in_progress' && !c.isReportWrong) : c.status === statusFilter));
     return matchesSearch && matchesStatus;
   });
 
@@ -124,9 +157,10 @@ export default function CenterCases() {
           {[
             { id: 'all', label: `All (${cases.length})` },
             { id: 'uploaded', label: `In Pool (${cases.filter(c => c.status === 'uploaded').length})` },
-            { id: 'in_progress', label: `Diagnosing (${cases.filter(c => c.status === 'in_progress').length})` },
-            { id: 'something_wrong', label: `Something Wrong (${cases.filter(c => c.status === 'something_wrong').length})` },
-            { id: 'completed', label: `Completed (${cases.filter(c => c.status === 'completed').length})` },
+            { id: 'in_progress', label: `Diagnosing (${cases.filter(c => c.status === 'in_progress' && !c.isReportWrong).length})` },
+            { id: 'report_revision', label: `Revision Requested (${cases.filter(c => c.isReportWrong).length})` },
+            { id: 'something_wrong', label: `Doc Issue (${cases.filter(c => c.status === 'something_wrong').length})` },
+            { id: 'completed', label: `Completed (${cases.filter(c => c.status === 'completed' && !c.isReportWrong).length})` },
           ].map(tab => (
             <button
               key={tab.id}
@@ -179,7 +213,12 @@ export default function CenterCases() {
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {c.status === 'something_wrong' ? (
+                    {c.isReportWrong ? (
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 shadow-sm">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse mr-1.5"></span>
+                        Revision Requested
+                      </span>
+                    ) : c.status === 'something_wrong' ? (
                       <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-200">
                         <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse mr-1.5"></span>
                         Something Wrong
@@ -202,7 +241,23 @@ export default function CenterCases() {
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right">
-                    {c.status === 'something_wrong' ? (
+                    {c.isReportWrong ? (
+                      <button
+                        onClick={() => {
+                          setSelectedReport(c);
+                          setIsSomethingWrongOpen(true);
+                          setWrongReportText(c.reportIssueDescription || '');
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg shadow-sm transition cursor-pointer"
+                        title="View report and edit revision issue"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        Revision Sent (View)
+                      </button>
+                    ) : c.status === 'something_wrong' ? (
                       <button
                         onClick={() => setSomethingWrongCase(c)}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg shadow-sm transition cursor-pointer"
@@ -214,7 +269,11 @@ export default function CenterCases() {
                       </button>
                     ) : c.status === 'completed' && c.report ? (
                       <button
-                        onClick={() => setSelectedReport(c)}
+                        onClick={() => {
+                          setSelectedReport(c);
+                          setIsSomethingWrongOpen(false);
+                          setWrongReportText('');
+                        }}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm transition cursor-pointer"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -269,19 +328,38 @@ export default function CenterCases() {
       {/* Report Viewer Modal */}
       {selectedReport && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden animate-fade-in">
-            <div className="px-6 py-4 bg-gray-900 text-white flex justify-between items-center">
-              <div>
+          <div className="bg-white rounded-2xl max-w-5xl w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden animate-fade-in">
+            <div className="px-6 py-4 bg-gray-900 text-white flex items-center justify-between gap-4">
+              <div className="min-w-0 flex-shrink-0">
                 <h3 className="text-lg font-bold">Diagnostic Radiology Report</h3>
                 <p className="text-xs text-gray-300">
                   Patient: {selectedReport.patientName} (ID: {selectedReport.patientId || selectedReport.id})
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-nowrap flex-shrink-0">
+                {/* Something Wrong Checkbox/Button Option - before Download PDF */}
+                <label className="flex items-center gap-1.5 px-3 py-1.5 bg-red-950/70 hover:bg-red-900 text-red-200 border border-red-700/70 rounded text-xs font-bold transition cursor-pointer select-none whitespace-nowrap flex-shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={isSomethingWrongOpen}
+                    onChange={(e) => {
+                      setIsSomethingWrongOpen(e.target.checked);
+                      if (!e.target.checked) setWrongReportText('');
+                    }}
+                    className="w-3.5 h-3.5 text-red-600 rounded border-red-400 focus:ring-red-500 cursor-pointer"
+                  />
+                  <span className="flex items-center gap-1">
+                    <svg className="w-3.5 h-3.5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    Something Wrong
+                  </span>
+                </label>
+
                 <button
                   onClick={handleDownloadPdf}
                   disabled={downloading}
-                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-semibold transition flex items-center gap-1.5 shadow-sm disabled:opacity-50 cursor-pointer"
+                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-semibold transition flex items-center gap-1.5 shadow-sm disabled:opacity-50 cursor-pointer whitespace-nowrap flex-shrink-0"
                   title="Download PDF File"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -292,7 +370,7 @@ export default function CenterCases() {
                 <button
                   onClick={handleOpenPdf}
                   disabled={downloading}
-                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-semibold transition flex items-center gap-1.5 shadow-sm disabled:opacity-50 cursor-pointer"
+                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-semibold transition flex items-center gap-1.5 shadow-sm disabled:opacity-50 cursor-pointer whitespace-nowrap flex-shrink-0"
                   title="Open PDF directly in browser"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -302,7 +380,7 @@ export default function CenterCases() {
                 </button>
                 <button
                   onClick={() => window.print()}
-                  className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-white rounded text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer"
+                  className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-white rounded text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap flex-shrink-0"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
@@ -310,8 +388,12 @@ export default function CenterCases() {
                   Print Report
                 </button>
                 <button
-                  onClick={() => setSelectedReport(null)}
-                  className="text-gray-400 hover:text-white p-1 rounded hover:bg-gray-800 transition cursor-pointer"
+                  onClick={() => {
+                    setSelectedReport(null);
+                    setIsSomethingWrongOpen(false);
+                    setWrongReportText('');
+                  }}
+                  className="text-gray-400 hover:text-white p-1 rounded hover:bg-gray-800 transition cursor-pointer flex-shrink-0 ml-1"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
@@ -319,6 +401,52 @@ export default function CenterCases() {
                 </button>
               </div>
             </div>
+
+            {/* Expandable Problem Description Section when Something Wrong is checked */}
+            {isSomethingWrongOpen && (
+              <div className="bg-red-50 border-b border-red-200 p-4 transition-all">
+                <div className="space-y-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-pulse"></span>
+                    <span className="text-xs font-black text-red-900 uppercase tracking-wide">
+                      Report Problem to Doctor / Radiologist
+                    </span>
+                  </div>
+                  <p className="text-xs text-red-700 font-medium">
+                    Describe what is wrong with this diagnostic report (e.g. incorrect findings, wrong body part reported, missing impression, spelling/patient detail mistake). The doctor will see this feedback in their workspace to modify and re-submit the corrected report.
+                  </p>
+                  <textarea
+                    rows="3"
+                    value={wrongReportText}
+                    onChange={(e) => setWrongReportText(e.target.value)}
+                    placeholder="Enter detailed problem description for the doctor..."
+                    className="w-full p-2.5 bg-white border border-red-300 rounded-lg text-xs text-gray-900 focus:ring-2 focus:ring-red-500 focus:border-red-500 shadow-inner"
+                  />
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleSubmitWrongReport}
+                      disabled={submittingWrongReport}
+                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-md disabled:opacity-50 cursor-pointer"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      {submittingWrongReport ? 'Submitting Issue...' : 'Submit Issue to Doctor'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsSomethingWrongOpen(false);
+                        setWrongReportText('');
+                      }}
+                      className="px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-xs font-bold transition cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="p-6 overflow-y-auto flex-1 bg-gray-50">
               <ReportViewer reportData={selectedReport} />
             </div>

@@ -229,10 +229,13 @@ exports.submitReport = async (req, res) => {
         // Only transition to completed and create payout if it was in_progress
         if (xrayCase.status === 'in_progress') {
             xrayCase.status = 'completed';
+            xrayCase.isReportWrong = false;
+            xrayCase.reportIssueDescription = null;
             await xrayCase.save({ transaction: t });
 
-            // Automated Payout Generation
-            if (doctorProfile && doctorProfile.reportFee) {
+            // Automated Payout Generation (avoid duplicate payout if revising an existing report)
+            const existingPayout = await Payout.findOne({ where: { caseId: id }, transaction: t });
+            if (!existingPayout && doctorProfile && doctorProfile.reportFee) {
                 await Payout.create({
                     doctorId,
                     caseId: id,
@@ -240,6 +243,10 @@ exports.submitReport = async (req, res) => {
                     status: 'pending'
                 }, { transaction: t });
             }
+        } else {
+            xrayCase.isReportWrong = false;
+            xrayCase.reportIssueDescription = null;
+            await xrayCase.save({ transaction: t });
         }
 
         await t.commit();

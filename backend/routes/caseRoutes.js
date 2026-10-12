@@ -21,5 +21,6 @@ router.post('/claim/:id', verifyRole('doctor'), caseController.claimCase);
 router.post('/:id/report', verifyRole('doctor'), reportController.submitReport);
 router.post('/:id/report-issue', verifyRole('doctor'), caseController.reportIssue);
 router.post('/:id/reupload', verifyRole('admin', 'center'), upload.single('dicomFile'), caseController.reuploadCaseFile);
+router.post('/:id/report-wrong-report', verifyRole('admin', 'center'), caseController.reportWrongReport);
 
 module.exports = router;

@@ -342,12 +342,17 @@ export default function DoctorWorkspace() {
         </div>
 
         <div className="flex items-center gap-3">
-          {caseDetails?.isModified && (
+          {caseDetails?.isReportWrong ? (
+            <span className="bg-red-500/25 text-red-300 border border-red-500/50 text-xs px-3 py-1 rounded-full font-bold flex items-center gap-1.5 animate-pulse">
+              <span className="w-2 h-2 rounded-full bg-red-400"></span>
+              Something Wrong in Report
+            </span>
+          ) : caseDetails?.isModified ? (
             <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs px-3 py-1 rounded-full font-bold flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-amber-400"></span>
               Modify
             </span>
-          )}
+          ) : null}
           {caseDetails?.report ? (
             <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs px-3 py-1 rounded-full font-bold flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
@@ -435,7 +440,28 @@ export default function DoctorWorkspace() {
             </div>
           </div>
 
-          {caseDetails?.report && (
+          {caseDetails?.isReportWrong && (
+            <div className="bg-red-50 border-2 border-red-400 text-red-950 p-5 rounded-xl mb-6 shadow-md">
+              <div className="flex items-start gap-3">
+                <span className="px-3 py-1 bg-red-600 text-white font-black rounded-lg text-xs uppercase tracking-wider shadow-sm flex-shrink-0 mt-0.5">
+                  ⚠️ Report Issue
+                </span>
+                <div className="flex-1">
+                  <div className="font-extrabold text-red-900 text-sm">
+                    Diagnostic Center Flagged an Issue With This Report:
+                  </div>
+                  <div className="mt-1.5 p-3 bg-white/90 border border-red-200 rounded-lg text-xs font-semibold text-red-800 shadow-inner">
+                    "{caseDetails?.reportIssueDescription || 'Center requested a report correction.'}"
+                  </div>
+                  <p className="text-xs text-red-700 mt-2 font-medium">
+                    Please correct the findings, impressions, or recommendations in the editor below and click <strong>Update & Save Report</strong> to finalize.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {caseDetails?.report && !caseDetails?.isReportWrong && (
             <div className="bg-amber-50 border border-amber-200 text-amber-900 p-4 rounded-xl mb-6 text-sm shadow-sm">
               <span className="font-bold flex items-center justify-center gap-1 mb-1">
                 ✏️ Editing Mode Active
@@ -602,15 +628,21 @@ export default function DoctorWorkspace() {
             <button
               type="submit"
               className={`w-full py-4 px-6 rounded-xl font-bold text-lg shadow-lg transition transform hover:-translate-y-1 flex items-center justify-center gap-2 text-white ${
-                caseDetails?.report
-                  ? 'bg-amber-600 hover:bg-amber-700'
-                  : 'bg-green-600 hover:bg-green-700'
+                caseDetails?.isReportWrong
+                  ? 'bg-blue-600 hover:bg-blue-700'
+                  : caseDetails?.report
+                    ? 'bg-amber-600 hover:bg-amber-700'
+                    : 'bg-green-600 hover:bg-green-700'
               }`}
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
               </svg>
-              {caseDetails?.report ? 'Update & Save Report' : 'Submit & Sign Report'}
+              {caseDetails?.isReportWrong
+                ? 'Update & Resubmit Corrected Report'
+                : caseDetails?.report
+                  ? 'Update & Save Report'
+                  : 'Submit & Sign Report'}
             </button>
           </form>
         </div>

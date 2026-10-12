@@ -327,3 +327,30 @@ exports.reuploadCaseFile = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 };
+
+exports.reportWrongReport = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { issueDescription } = req.body;
+
+        if (!issueDescription || !issueDescription.trim()) {
+            return res.status(400).json({ message: 'Problem description is required' });
+        }
+
+        const xrayCase = await XrayCase.findByPk(id);
+        if (!xrayCase) {
+            return res.status(404).json({ message: 'Case not found' });
+        }
+
+        xrayCase.isReportWrong = true;
+        xrayCase.reportIssueDescription = issueDescription.trim();
+        xrayCase.status = 'in_progress';
+        await xrayCase.save();
+
+        res.json({ message: 'Report issue reported to doctor successfully', case: xrayCase });
+    } catch (error) {
+        console.error('Error reporting wrong report:', error);
+        res.status(500).json({ error: error.message });
+    }
+};
+
