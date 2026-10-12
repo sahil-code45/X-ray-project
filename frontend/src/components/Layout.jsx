@@ -6,6 +6,7 @@ export default function Layout({ children, role }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [openPoolCount, setOpenPoolCount] = useState(0);
+  const [doctorPendingCount, setDoctorPendingCount] = useState(0);
   const [adminPendingCount, setAdminPendingCount] = useState(0);
 
   const handleLogout = () => {
@@ -23,6 +24,7 @@ export default function Layout({ children, role }) {
             headers: { Authorization: `Bearer ${token}` }
           });
           setOpenPoolCount(res.data.availableCases?.length || 0);
+          setDoctorPendingCount(res.data.myCases?.length || 0);
         } else if (role === 'admin') {
           const res = await axios.get('http://localhost:8000/api/admin/pending-users', {
             headers: { Authorization: `Bearer ${token}` }
@@ -56,6 +58,13 @@ export default function Layout({ children, role }) {
       path: '/doctor/open-pool',
       badge: openPoolCount,
       icon: 'M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z'
+    },
+    {
+      name: 'Pending Reports',
+      path: '/doctor/pending-reports',
+      badge: doctorPendingCount,
+      badgeColor: 'bg-amber-500',
+      icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'
     },
     {
       name: 'Completed Reports',
@@ -132,7 +141,7 @@ export default function Layout({ children, role }) {
                     isActive
                       ? 'bg-white text-blue-700'
                       : link.badge > 0
-                        ? 'bg-cyan-500 text-white animate-pulse'
+                        ? `${link.badgeColor || 'bg-cyan-500'} text-white animate-pulse`
                         : 'bg-gray-200 text-gray-600'
                   }`}>
                     {link.badge}

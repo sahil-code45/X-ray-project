@@ -12,6 +12,7 @@ import CenterUpload from './pages/CenterUpload';
 import CenterCases from './pages/CenterCases';
 import DoctorDashboard from './pages/DoctorDashboard';
 import DoctorOpenPool from './pages/DoctorOpenPool';
+import DoctorPendingReports from './pages/DoctorPendingReports';
 import DoctorCompletedReports from './pages/DoctorCompletedReports';
 import DoctorWorkspace from './pages/DoctorWorkspace';
 import Layout from './components/Layout';
@@ -43,6 +44,7 @@ function App() {
         {/* Doctor Routes wrapped in Layout */}
         <Route path="/doctor" element={<Layout role="doctor"><DoctorDashboard /></Layout>} />
         <Route path="/doctor/open-pool" element={<Layout role="doctor"><DoctorOpenPool /></Layout>} />
+        <Route path="/doctor/pending-reports" element={<Layout role="doctor"><DoctorPendingReports /></Layout>} />
         <Route path="/doctor/completed-reports" element={<Layout role="doctor"><DoctorCompletedReports /></Layout>} />
         <Route path="/doctor/workspace/:id" element={<Layout role="doctor"><DoctorWorkspace /></Layout>} />
       </Routes>

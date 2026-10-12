@@ -122,17 +122,23 @@ export default function DoctorDashboard() {
         </div>
 
         {/* Card 3: Pending Reports */}
-        <div className="bg-[#6B93F7] rounded-xl p-6 flex items-center shadow-lg transform hover:-translate-y-1 transition-transform duration-200">
-          <div className="bg-white rounded-full h-14 w-14 flex items-center justify-center flex-shrink-0 shadow-inner">
+        <Link
+          to="/doctor/pending-reports"
+          className="bg-[#6B93F7] hover:bg-[#5b83e8] rounded-xl p-6 flex items-center shadow-lg transform hover:-translate-y-1 transition-all duration-200 cursor-pointer group"
+        >
+          <div className="bg-white rounded-full h-14 w-14 flex items-center justify-center flex-shrink-0 shadow-inner group-hover:scale-105 transition-transform">
             <svg className="w-7 h-7 text-[#6B93F7]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
             </svg>
           </div>
           <div className="ml-4 text-white">
-            <h3 className="text-3xl font-bold">{claimedCases?.length || 0}</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-3xl font-bold">{claimedCases?.length || 0}</h3>
+              <span className="text-[10px] uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded font-black">View All →</span>
+            </div>
             <p className="text-sm font-medium opacity-90 mt-1">Pending Reports</p>
           </div>
-        </div>
+        </Link>
 
         {/* Card 4: Total Paid Fees */}
         <div className="bg-[#8F66FC] rounded-xl p-6 flex items-center shadow-lg transform hover:-translate-y-1 transition-transform duration-200">
@@ -188,25 +194,42 @@ export default function DoctorDashboard() {
         </div>
       </div>
       
-      <div className="flex justify-between items-center mb-4 border-b pb-2">
-        <h3 className="text-xl font-semibold">My Active Cases (To be Reported)</h3>
-        {searchQuery && (
-          <span className="text-xs text-gray-500">
-            Showing {filteredClaimedCases.length} of {claimedCases.length} cases
-          </span>
-        )}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4 border-b pb-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <h3 className="text-xl font-bold text-gray-800">Recent Pending Reports (To be Reported)</h3>
+            <span className="text-xs bg-amber-100 text-amber-800 font-extrabold px-2.5 py-0.5 rounded-full border border-amber-200">
+              Recent 5
+            </span>
+          </div>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Showing up to 5 most recent cases waiting for diagnostic reports.
+          </p>
+        </div>
+        
+        <Link
+          to="/doctor/pending-reports"
+          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition shadow-sm"
+        >
+          <span>View All Pending Reports ({claimedCases.length})</span>
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+          </svg>
+        </Link>
       </div>
-      <div className="bg-white shadow rounded-lg overflow-hidden border border-blue-100 mb-8">
+
+      <div className="bg-white shadow rounded-lg overflow-hidden border border-blue-100 mb-4">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-blue-50">
             <tr>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-blue-800 uppercase tracking-wider">Patient Details</th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-blue-800 uppercase tracking-wider">Study Notes</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-blue-800 uppercase tracking-wider">Claimed / Last Active</th>
               <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-blue-800 uppercase tracking-wider">Action</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {filteredClaimedCases.map(c => (
+            {filteredClaimedCases.slice(0, 5).map(c => (
               <tr key={c.id} className="hover:bg-blue-50">
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center gap-2">
@@ -225,7 +248,13 @@ export default function DoctorDashboard() {
                   <div className="text-sm text-gray-500">{c.patientAge} Yrs / {c.patientGender}</div>
                 </td>
                 <td className="px-6 py-4">
-                  <div className="text-sm text-gray-900 line-clamp-2">{c.studyNotes}</div>
+                  <div className="text-sm text-gray-900 line-clamp-2">{c.studyNotes || '—'}</div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <div className="font-medium text-gray-700">{new Date(c.updatedAt || c.createdAt).toLocaleDateString()}</div>
+                  <div className="text-xs text-gray-400">
+                    {new Date(c.updatedAt || c.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <button onClick={() => navigate(`/doctor/workspace/${c.id}`)} className="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700 transition-colors">
@@ -236,7 +265,7 @@ export default function DoctorDashboard() {
             ))}
             {filteredClaimedCases.length === 0 && (
               <tr>
-                <td colSpan="3" className="px-6 py-8 text-center text-gray-500">
+                <td colSpan="4" className="px-6 py-8 text-center text-gray-500">
                   {searchQuery ? (
                     <div>
                       <p className="font-semibold text-gray-700">No active patients found matching "{searchQuery}"</p>
@@ -256,6 +285,24 @@ export default function DoctorDashboard() {
           </tbody>
         </table>
       </div>
+
+      {claimedCases.length > 5 && (
+        <div className="p-3.5 bg-blue-50/70 border border-blue-200 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-2 shadow-sm">
+          <div className="flex items-center gap-2 text-xs text-gray-700">
+            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+            <span>Showing recent <strong>5</strong> of <strong>{claimedCases.length}</strong> pending cases.</span>
+          </div>
+          <Link
+            to="/doctor/pending-reports"
+            className="text-xs font-bold text-blue-700 hover:text-blue-900 hover:underline inline-flex items-center gap-1"
+          >
+            <span>See all {claimedCases.length} pending reports in Pending Reports section</span>
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+            </svg>
+          </Link>
+        </div>
+      )}
     </div>
   );
 }
