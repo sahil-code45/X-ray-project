@@ -263,12 +263,13 @@ export default function CenterUpload() {
           <form onSubmit={handleUpload} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  Patient ID <span className="text-xs text-gray-400 font-normal">(Optional)</span>
+                <label className="block text-sm font-semibold text-gray-700 mb-1" >
+                  Patient ID <span className="text-xs text-black-500 font-normal">*</span>
                 </label>
                 <input
                   type="text"
                   name="patientId"
+                  required
                   placeholder="e.g. PID-2026-01"
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm transition"
                   value={caseForm.patientId}

@@ -8,6 +8,7 @@ import AdminDoctorPayoutDetails from './pages/AdminDoctorPayoutDetails';
 import AdminOverview from './pages/AdminOverview';
 import AdminUpload from './pages/AdminUpload';
 import AdminDoctors from './pages/AdminDoctors';
+import AdminPricing from './pages/AdminPricing';
 import CenterUpload from './pages/CenterUpload';
 import CenterCases from './pages/CenterCases';
 import DoctorDashboard from './pages/DoctorDashboard';
@@ -37,6 +38,7 @@ function App() {
         <Route path="/admin" element={<Layout role="admin"><AdminOverview /></Layout>} />
         <Route path="/admin-upload" element={<Layout role="admin"><AdminUpload /></Layout>} />
         <Route path="/admin-doctors" element={<Layout role="admin"><AdminDoctors /></Layout>} />
+        <Route path="/admin-pricing" element={<Layout role="admin"><AdminPricing /></Layout>} />
         <Route path="/admin-approvals" element={<Layout role="admin"><AdminDashboard /></Layout>} />
         <Route path="/admin-payouts" element={<Layout role="admin"><AdminPayouts /></Layout>} />
         <Route path="/admin-payouts/:doctorId" element={<Layout role="admin"><AdminDoctorPayoutDetails /></Layout>} />

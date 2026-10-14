@@ -1,4 +1,4 @@
-const { XrayCase, Report, Payout, DoctorProfile, sequelize } = require('../models');
+const { XrayCase, Report, Payout, DoctorProfile, DoctorTestPricing, sequelize } = require('../models');
 const fs = require('fs');
 const path = require('path');
 const PDFDocument = require('pdfkit');
@@ -138,7 +138,7 @@ exports.submitReport = async (req, res) => {
     try {
         const { id } = req.params; // Case ID
         const doctorId = req.user.id;
-        const { clinicalFindings, impression, recommendations } = req.body;
+        const { clinicalFindings, impression, recommendations, testName, modality } = req.body;
         const { Op } = require('sequelize');
 
         const xrayCase = await XrayCase.findOne({ 
@@ -174,6 +174,9 @@ exports.submitReport = async (req, res) => {
         doc.fontSize(12).text(`Doctor: ${doctorProfile ? doctorProfile.name : 'Radiologist'} | Reg No: ${docRegNo}`);
         const patientIdLabel = xrayCase.patientId ? ` | ID: ${xrayCase.patientId}` : '';
         doc.text(`Patient: ${xrayCase.patientName}${patientIdLabel} | Age: ${xrayCase.patientAge} | Gender: ${xrayCase.patientGender}`);
+        if (testName) {
+            doc.text(`Study / Test: ${testName}${modality ? ` (${modality})` : ''}`);
+        }
         doc.moveDown();
         
         doc.fontSize(14).text('Clinical Findings:', { underline: true });
@@ -209,6 +212,7 @@ exports.submitReport = async (req, res) => {
         doc.end();
 
         const pdfUrl = `uploads/${pdfFileName}`;
+        const resolvedModality = modality || (testName && testName.includes('MRI') ? 'MRI' : (testName && testName.includes('CT') ? 'CT' : 'General'));
 
         // Check if report already exists for this case (Editing Mode)
         let existingReport = await Report.findOne({ where: { caseId: id }, transaction: t });
@@ -218,11 +222,20 @@ exports.submitReport = async (req, res) => {
             existingReport.impression = impression;
             existingReport.recommendations = recommendations;
             existingReport.pdfUrl = pdfUrl;
+            if (testName) existingReport.testName = testName;
+            if (resolvedModality) existingReport.modality = resolvedModality;
             await existingReport.save({ transaction: t });
         } else {
             // Create Report Record
             await Report.create({
-                caseId: id, doctorId, clinicalFindings, impression, recommendations, pdfUrl
+                caseId: id, 
+                doctorId, 
+                clinicalFindings, 
+                impression, 
+                recommendations, 
+                pdfUrl,
+                testName: testName || null,
+                modality: resolvedModality || null
             }, { transaction: t });
         }
 
@@ -231,21 +244,54 @@ exports.submitReport = async (req, res) => {
             xrayCase.status = 'completed';
             xrayCase.isReportWrong = false;
             xrayCase.reportIssueDescription = null;
+            if (testName) xrayCase.testName = testName;
+            if (resolvedModality) xrayCase.modality = resolvedModality;
             await xrayCase.save({ transaction: t });
 
-            // Automated Payout Generation (avoid duplicate payout if revising an existing report)
+            // Automated Payout Generation with Doctor Test Pricing setup
             const existingPayout = await Payout.findOne({ where: { caseId: id }, transaction: t });
-            if (!existingPayout && doctorProfile && doctorProfile.reportFee) {
+            if (!existingPayout) {
+                let payoutAmount = null;
+
+                // 1. Look for doctor-specific price for this test
+                if (testName) {
+                    const docSpecific = await DoctorTestPricing.findOne({
+                        where: { doctorId, testName: testName.trim() },
+                        transaction: t
+                    });
+                    if (docSpecific && Number(docSpecific.price) > 0) {
+                        payoutAmount = Number(docSpecific.price);
+                    } else {
+                        // 2. Look for default price across all doctors (doctorId: null)
+                        const defaultPrice = await DoctorTestPricing.findOne({
+                            where: { doctorId: null, testName: testName.trim() },
+                            transaction: t
+                        });
+                        if (defaultPrice && Number(defaultPrice.price) > 0) {
+                            payoutAmount = Number(defaultPrice.price);
+                        }
+                    }
+                }
+
+                // 3. Fallback to doctor's configured reportFee or standard default
+                if (!payoutAmount || payoutAmount <= 0) {
+                    payoutAmount = (doctorProfile && doctorProfile.reportFee) ? Number(doctorProfile.reportFee) : 500;
+                }
+
                 await Payout.create({
                     doctorId,
                     caseId: id,
-                    amount: doctorProfile.reportFee,
+                    amount: payoutAmount,
+                    testName: testName || `${resolvedModality} Report`,
+                    modality: resolvedModality,
                     status: 'pending'
                 }, { transaction: t });
             }
         } else {
             xrayCase.isReportWrong = false;
             xrayCase.reportIssueDescription = null;
+            if (testName) xrayCase.testName = testName;
+            if (resolvedModality) xrayCase.modality = resolvedModality;
             await xrayCase.save({ transaction: t });
         }
 

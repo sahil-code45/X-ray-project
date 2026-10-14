@@ -12,6 +12,8 @@ module.exports = (sequelize, DataTypes) => {
     doctorId: DataTypes.INTEGER,
     caseId: DataTypes.INTEGER,
     amount: DataTypes.DECIMAL,
+    testName: DataTypes.STRING,
+    modality: DataTypes.STRING,
     status: { type: DataTypes.STRING, defaultValue: 'pending' },
     transactionRef: DataTypes.STRING
   }, {

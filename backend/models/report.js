@@ -19,7 +19,9 @@ module.exports = (sequelize, DataTypes) => {
     clinicalFindings: DataTypes.TEXT,
     impression: DataTypes.TEXT,
     recommendations: DataTypes.TEXT,
-    pdfUrl: DataTypes.STRING
+    pdfUrl: DataTypes.STRING,
+    testName: DataTypes.STRING,
+    modality: DataTypes.STRING
   }, {
     sequelize,
     modelName: 'Report',

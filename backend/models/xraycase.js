@@ -28,7 +28,9 @@ module.exports = (sequelize, DataTypes) => {
     isReportWrong: {
       type: DataTypes.BOOLEAN,
       defaultValue: false
-    }
+    },
+    testName: DataTypes.STRING,
+    modality: DataTypes.STRING
   }, {
     sequelize,
     modelName: 'XrayCase',

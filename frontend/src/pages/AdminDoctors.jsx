@@ -43,10 +43,10 @@ export default function AdminDoctors() {
       const token = localStorage.getItem('token');
       const [approvedRes, pendingRes] = await Promise.all([
         axios.get(`${API_BASE_URL}/api/admin/approved-users`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_BASE_URL}/api/admin/pending-users`, { headers: { Authorization: `Bearer ${token}` } })
+        axios.get(`${API_BASE_URL}/api/admin/pending-count`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
       setDoctors(approvedRes.data);
-      setPendingCount(pendingRes.data?.length || 0);
+      setPendingCount(pendingRes.data?.count ?? 0);
     } catch (error) {
       if (error.response?.status === 401 || error.response?.status === 403) {
         navigate('/login');
@@ -109,7 +109,7 @@ export default function AdminDoctors() {
   return (
     <div className="bg-transparent h-full flex flex-col">
       {/* Admin Sub-Navbar */}
-      <AdminNav />
+      <AdminNav pendingCount={pendingCount} />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full space-y-6">
         {/* Header & Quick Stats */}
@@ -287,8 +287,17 @@ export default function AdminDoctors() {
 
                       {/* Fee & Verification */}
                       <td className="px-6 py-5 whitespace-nowrap">
-                        <div className="text-sm font-extrabold text-green-700 bg-green-50 px-2.5 py-0.5 rounded-md inline-block border border-green-200 mb-1.5">
-                          Fee: ₹{u.doctorProfile?.reportFee || 0} / report
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          <div className="text-sm font-extrabold text-green-700 bg-green-50 px-2.5 py-0.5 rounded-md inline-block border border-green-200">
+                            Base: ₹{u.doctorProfile?.reportFee || 0}
+                          </div>
+                          <Link
+                            to="/admin-pricing"
+                            className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded border border-indigo-200 transition"
+                            title="Manage CT & MRI test pricing for this doctor"
+                          >
+                            💳 Test Rates
+                          </Link>
                         </div>
                         <div className="text-xs text-gray-600">
                           <span className="font-semibold text-gray-500">PAN:</span> {u.doctorProfile?.panCard || 'N/A'}
@@ -299,6 +308,19 @@ export default function AdminDoctors() {
                           </div>
                         )}
                         <div className="flex flex-wrap gap-1.5 mt-2">
+                          {u.doctorProfile?.registrationFileUrl && (
+                            <button
+                              type="button"
+                              onClick={() => setSelectedDegree({
+                                url: getDocumentUrl(u.doctorProfile.registrationFileUrl),
+                                doctorName: docName,
+                                title: 'MCI / State Council Registration Certificate'
+                              })}
+                              className="inline-flex items-center text-xs text-blue-600 hover:text-blue-800 font-semibold bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded border border-blue-100 transition shadow-sm cursor-pointer"
+                            >
+                              📑 Reg Certificate
+                            </button>
+                          )}
                           {(u.doctorProfile?.mbbsDegreeFileUrl || degreeFile) && (
                             <button
                               type="button"

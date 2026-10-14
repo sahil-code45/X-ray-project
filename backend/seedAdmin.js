@@ -3,15 +3,16 @@ const bcrypt = require('bcrypt');
 
 (async () => {
   try {
-    const hashedPassword = await bcrypt.hash('admin123', 10);
+    const hashedPassword = await bcrypt.hash('Aman@1020', 10);
     const [user, created] = await User.findOrCreate({
-      where: { email: 'admin@teleradiology.com' },
+      where: { email: 'aman123@gmail.com' },
       defaults: { password: hashedPassword, role: 'admin', status: 'approved' }
     });
     if(created) {
-      console.log('Admin user created: admin@teleradiology.com / admin123');
+      console.log('Admin user created: aman123@gmail.com / Aman@1020');
     } else {
-      console.log('Admin user already exists.');
+      await user.update({ password: hashedPassword, role: 'admin', status: 'approved' });
+      console.log('Admin user updated: aman123@gmail.com / Aman@1020');
     }
   } catch(e) {
     console.error(e);

@@ -73,6 +73,8 @@ export default function DoctorWorkspace() {
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [isMRI, setIsMRI] = useState(false);
   const [selectedMriTemplateId, setSelectedMriTemplateId] = useState('');
+  const [selectedTestName, setSelectedTestName] = useState('');
+  const [selectedModality, setSelectedModality] = useState('');
   const [isSomethingWrong, setIsSomethingWrong] = useState(false);
   const [issueText, setIssueText] = useState('');
   const [submittingIssue, setSubmittingIssue] = useState(false);
@@ -87,6 +89,11 @@ export default function DoctorWorkspace() {
         });
         if (!isMounted) return;
         setCaseDetails(res.data);
+
+        if (res.data.report?.testName || res.data.testName) {
+          setSelectedTestName(res.data.report?.testName || res.data.testName || '');
+          setSelectedModality(res.data.report?.modality || res.data.modality || '');
+        }
         
         if (res.data.report) {
           let combined = res.data.report.clinicalFindings || '';
@@ -237,7 +244,12 @@ export default function DoctorWorkspace() {
     e.preventDefault();
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.post(`${API_BASE_URL}/api/cases/${id}/report`, formData, {
+      const payload = {
+        ...formData,
+        testName: selectedTestName || null,
+        modality: selectedModality || (selectedTestName?.includes('MRI') ? 'MRI' : (selectedTestName?.includes('CT') ? 'CT' : null))
+      };
+      const res = await axios.post(`${API_BASE_URL}/api/cases/${id}/report`, payload, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const isEdit = Boolean(caseDetails?.report);
@@ -255,6 +267,8 @@ export default function DoctorWorkspace() {
     if (id) {
       const template = CT_TEMPLATES.find(t => t.id === parseInt(id));
       if (template) {
+        setSelectedTestName(template.name);
+        setSelectedModality('CT');
         const combined = `${template.findings || ''}<br/><p><strong>IMPRESSION</strong></p>${template.impression || ''}`;
         setFormData({
           ...formData,
@@ -263,6 +277,9 @@ export default function DoctorWorkspace() {
           recommendations: ''
         });
       }
+    } else {
+      setSelectedTestName('');
+      setSelectedModality('');
     }
   };
 
@@ -272,6 +289,8 @@ export default function DoctorWorkspace() {
     if (id) {
       const template = MRI_TEMPLATES.find(t => t.id === parseInt(id));
       if (template) {
+        setSelectedTestName(template.name);
+        setSelectedModality('MRI');
         const combined = `${template.findings || ''}<br/><p><strong>IMPRESSION</strong></p>${template.impression || ''}`;
         setFormData({
           ...formData,
@@ -280,6 +299,9 @@ export default function DoctorWorkspace() {
           recommendations: ''
         });
       }
+    } else {
+      setSelectedTestName('');
+      setSelectedModality('');
     }
   };
 
@@ -489,6 +511,20 @@ export default function DoctorWorkspace() {
                   Previous issue: "{caseDetails.issueDescription}"
                 </span>
               )}
+            </div>
+          )}
+
+          {selectedTestName && (
+            <div className="mb-4 px-4 py-2.5 bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-200 rounded-xl flex items-center justify-between text-xs shadow-sm">
+              <div className="flex items-center gap-2">
+                <span className={`px-2 py-0.5 rounded text-[11px] font-extrabold uppercase shadow-sm ${selectedModality === 'MRI' ? 'bg-purple-600 text-white' : 'bg-cyan-600 text-white'}`}>
+                  {selectedModality || 'TEST'}
+                </span>
+                <span className="font-bold text-gray-800">Study: {selectedTestName}</span>
+              </div>
+              <span className="text-[11px] text-indigo-700 font-bold bg-white px-2.5 py-1 rounded-md shadow-xs border border-indigo-100">
+                Rate configured by Admin
+              </span>
             </div>
           )}
 

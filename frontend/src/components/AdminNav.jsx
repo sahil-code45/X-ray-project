@@ -1,27 +1,36 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 
-export default function AdminNav() {
+export default function AdminNav({ pendingCount: propPendingCount }) {
   const location = useLocation();
-  const [pendingCount, setPendingCount] = useState(0);
+  const [pendingCount, setPendingCount] = useState(propPendingCount ?? 0);
 
   useEffect(() => {
+    if (propPendingCount !== undefined) {
+      setPendingCount(propPendingCount);
+      return;
+    }
+
     const fetchPending = async () => {
       try {
         const token = localStorage.getItem('token');
         if (token) {
-          const res = await axios.get('http://localhost:8000/api/admin/pending-users', {
+          const res = await axios.get(`${API_BASE_URL}/api/admin/pending-count`, {
             headers: { Authorization: `Bearer ${token}` }
           });
-          setPendingCount(res.data?.length || 0);
+          setPendingCount(res.data?.count ?? 0);
         }
       } catch (e) {}
     };
+
     fetchPending();
-    const interval = setInterval(fetchPending, 10000);
-    return () => clearInterval(interval);
-  }, [location.pathname]);
+
+    // Refetch on window focus
+    window.addEventListener('focus', fetchPending);
+    return () => window.removeEventListener('focus', fetchPending);
+  }, [location.pathname, propPendingCount]);
 
   const navItems = [
     { 
@@ -39,6 +48,15 @@ export default function AdminNav() {
       icon: (
         <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+        </svg>
+      )
+    },
+    { 
+      name: 'Payment Setup', 
+      path: '/admin-pricing',
+      icon: (
+        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
         </svg>
       )
     },

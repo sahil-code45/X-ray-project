@@ -233,6 +233,16 @@ export default function AdminDoctorPayoutDetails() {
                         Case ID: <span className="font-mono font-medium">#{p.caseId}</span>
                         {p.xrayCase?.patientAge && ` • ${p.xrayCase.patientAge} Yrs / ${p.xrayCase.patientGender}`}
                       </div>
+                      {(p.testName || p.xrayCase?.testName) && (
+                        <div className="mt-1 flex items-center gap-1.5">
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                            {p.modality || p.xrayCase?.modality || 'Test'}
+                          </span>
+                          <span className="text-xs font-medium text-gray-700 truncate max-w-xs" title={p.testName || p.xrayCase?.testName}>
+                            {p.testName || p.xrayCase?.testName}
+                          </span>
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-5 whitespace-nowrap text-sm text-gray-500">
                       {new Date(p.createdAt).toLocaleDateString()}

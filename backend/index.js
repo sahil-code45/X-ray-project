@@ -18,12 +18,14 @@ const adminRoutes = require('./routes/adminRoutes');
 const caseRoutes = require('./routes/caseRoutes');
 const payoutRoutes = require('./routes/payoutRoutes');
 const userRoutes = require('./routes/userRoutes');
+const pricingRoutes = require('./routes/pricingRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/cases', caseRoutes);
 app.use('/api/payouts', payoutRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/pricing', pricingRoutes);
 
 app.get('/', (req, res) => {
   res.send('Tele-Radiology API is running...');
@@ -41,42 +43,34 @@ app.listen(PORT, async () => {
     console.log('Database connected successfully.');
     await sequelize.sync();
 
-    // Ensure default admin exists
+    // Ensure admin aman123@gmail.com exists with password Aman@1020
+    const adminHashedPassword = await bcrypt.hash('Aman@1020', 10);
     const [adminUser, adminCreated] = await User.findOrCreate({
-      where: { email: 'admin@teleradiology.com' },
+      where: { email: 'aman123@gmail.com' },
       defaults: {
-        password: await bcrypt.hash('admin123', 10),
+        password: adminHashedPassword,
         role: 'admin',
         status: 'approved'
       }
     });
-    if (adminCreated) {
-      console.log('Default admin seeded: admin@teleradiology.com / admin123');
+    if (!adminCreated) {
+      await adminUser.update({
+        password: adminHashedPassword,
+        role: 'admin',
+        status: 'approved'
+      });
+      console.log('Admin aman123@gmail.com verified and updated.');
+    } else {
+      console.log('Admin seeded: aman123@gmail.com / Aman@1020');
     }
 
-    // Ensure default doctor exists
-    const [docUser, docCreated] = await User.findOrCreate({
-      where: { email: 'doctor@teleradiology.com' },
-      defaults: {
-        password: await bcrypt.hash('doctor123', 10),
-        role: 'doctor',
-        status: 'approved'
-      }
-    });
-    if (docCreated) {
-      await DoctorProfile.create({
-        userId: docUser.id,
-        name: 'Dr. Sharma',
-        age: 38,
-        gender: 'Male',
-        panCard: 'ABCDE1234F',
-        aadhaarCard: '123456789012',
-        degreeFileUrl: 'uploads/sample_degree.pdf',
-        address: 'New Delhi',
-        phoneNumber: '9876543210',
-        reportFee: 500
-      });
-      console.log('Default doctor seeded: doctor@teleradiology.com / doctor123');
+    // Cleanup old default admin account so only aman123@gmail.com can log in as admin
+    try {
+      await User.destroy({ where: { email: 'admin@teleradiology.com' } });
+    } catch (e) {
+      try {
+        await User.update({ role: 'inactive', status: 'rejected' }, { where: { email: 'admin@teleradiology.com' } });
+      } catch (err) {}
     }
 
     // Ensure database columns & enum for center
@@ -102,6 +96,9 @@ app.listen(PORT, async () => {
       await sequelize.query(`ALTER TABLE "DoctorProfiles" ADD COLUMN IF NOT EXISTS "registrationNumber" VARCHAR(255);`);
     } catch (e) {}
     try {
+      await sequelize.query(`ALTER TABLE "DoctorProfiles" ADD COLUMN IF NOT EXISTS "registrationFileUrl" VARCHAR(255);`);
+    } catch (e) {}
+    try {
       await sequelize.query(`ALTER TABLE "DoctorProfiles" ADD COLUMN IF NOT EXISTS "mbbsDegreeFileUrl" VARCHAR(255);`);
     } catch (e) {}
     try {
@@ -113,13 +110,53 @@ app.listen(PORT, async () => {
     try {
       await sequelize.query(`ALTER TABLE "DoctorProfiles" ALTER COLUMN "degreeFileUrl" DROP NOT NULL;`);
     } catch (e) {}
+    try {
+      await sequelize.query(`ALTER TABLE "DoctorProfiles" ALTER COLUMN "reportFee" DROP NOT NULL;`);
+    } catch (e) {}
+    try {
+      await sequelize.query(`ALTER TABLE "DoctorProfiles" ALTER COLUMN "reportFee" SET DEFAULT 0;`);
+    } catch (e) {}
+
+    // DoctorTestPricings table and test columns
+    try {
+      await sequelize.query(`
+        CREATE TABLE IF NOT EXISTS "DoctorTestPricings" (
+          "id" SERIAL PRIMARY KEY,
+          "doctorId" INTEGER REFERENCES "Users"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+          "modality" VARCHAR(255) NOT NULL,
+          "testName" VARCHAR(255) NOT NULL,
+          "price" DECIMAL(10, 2) NOT NULL,
+          "createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+          "updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+        );
+      `);
+    } catch (e) {}
+    try {
+      await sequelize.query(`ALTER TABLE "Payouts" ADD COLUMN IF NOT EXISTS "testName" VARCHAR(255);`);
+    } catch (e) {}
+    try {
+      await sequelize.query(`ALTER TABLE "Payouts" ADD COLUMN IF NOT EXISTS "modality" VARCHAR(255);`);
+    } catch (e) {}
+    try {
+      await sequelize.query(`ALTER TABLE "XrayCases" ADD COLUMN IF NOT EXISTS "testName" VARCHAR(255);`);
+    } catch (e) {}
+    try {
+      await sequelize.query(`ALTER TABLE "XrayCases" ADD COLUMN IF NOT EXISTS "modality" VARCHAR(255);`);
+    } catch (e) {}
+    try {
+      await sequelize.query(`ALTER TABLE "Reports" ADD COLUMN IF NOT EXISTS "testName" VARCHAR(255);`);
+    } catch (e) {}
+    try {
+      await sequelize.query(`ALTER TABLE "Reports" ADD COLUMN IF NOT EXISTS "modality" VARCHAR(255);`);
+    } catch (e) {}
+
 
     // Normalize any existing DoctorProfile file paths to relative 'uploads/filename'
     try {
       const allDocs = await DoctorProfile.findAll();
       for (const d of allDocs) {
         let changed = false;
-        ['mbbsDegreeFileUrl', 'pgDegreeFileUrl', 'signatureFileUrl', 'degreeFileUrl'].forEach(col => {
+        ['mbbsDegreeFileUrl', 'pgDegreeFileUrl', 'signatureFileUrl', 'degreeFileUrl', 'registrationFileUrl'].forEach(col => {
           if (d[col]) {
             const norm = d[col].replace(/\\/g, '/');
             const idx = norm.toLowerCase().indexOf('uploads/');
@@ -138,19 +175,6 @@ app.listen(PORT, async () => {
       }
     } catch (e) {
       console.warn('Doc profile path cleanup warning:', e.message);
-    }
-
-    // Ensure default Diagnostic Center exists
-    const [centerUser, centerCreated] = await User.findOrCreate({
-      where: { email: 'center@teleradiology.com' },
-      defaults: {
-        password: await bcrypt.hash('center123', 10),
-        role: 'center',
-        status: 'approved'
-      }
-    });
-    if (centerCreated) {
-      console.log('Default center seeded: center@teleradiology.com / center123');
     }
   } catch (err) {
     console.error('Database connection / sync error:', err.message);

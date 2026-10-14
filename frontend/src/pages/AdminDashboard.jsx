@@ -80,7 +80,7 @@ export default function AdminDashboard() {
   return (
     <div className="bg-transparent h-full flex flex-col">
       {/* Admin Sub-Navbar */}
-      <AdminNav />
+      <AdminNav pendingCount={users.length} />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-8">
@@ -152,6 +152,19 @@ export default function AdminDashboard() {
                       <div className="text-xs text-gray-600"><span className="font-medium text-gray-500">PAN:</span> {u.doctorProfile?.panCard}</div>
                       <div className="text-xs text-gray-600"><span className="font-medium text-gray-500">Aadhaar:</span> {u.doctorProfile?.aadhaarCard}</div>
                       <div className="flex flex-wrap gap-1.5 mt-2">
+                        {u.doctorProfile?.registrationFileUrl && (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedDegree({
+                              url: getDocumentUrl(u.doctorProfile.registrationFileUrl),
+                              doctorName: u.doctorProfile?.name || u.email,
+                              title: 'MCI / State Council Registration Certificate'
+                            })}
+                            className="inline-flex items-center text-xs text-blue-600 hover:text-blue-900 font-semibold bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded-md border border-blue-200 transition shadow-sm cursor-pointer"
+                          >
+                            📑 Reg Certificate
+                          </button>
+                        )}
                         {(u.doctorProfile?.mbbsDegreeFileUrl || u.doctorProfile?.degreeFileUrl) && (
                           <button
                             type="button"

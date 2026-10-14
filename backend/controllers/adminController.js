@@ -12,6 +12,15 @@ const transporter = nodemailer.createTransport({
     }
 });
 
+exports.getPendingCount = async (req, res) => {
+    try {
+        const count = await User.count({ where: { status: 'pending', role: 'doctor' } });
+        res.json({ count });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
 exports.getPendingUsers = async (req, res) => {
     try {
         const users = await User.findAll({

@@ -8,7 +8,6 @@ export default function Login() {
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
-  const [regRole, setRegRole] = useState('center');
   const navigate = useNavigate();
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -34,13 +33,8 @@ export default function Login() {
         else if (res.data.role === 'center' || res.data.role === 'vendor') navigate('/center');
         else navigate('/admin');
       } else {
-        if (regRole === 'center') {
-          await axios.post(`${API_BASE_URL}/api/auth/register/center`, formData);
-          setMessage('Diagnostic Center registered successfully! Please sign in.');
-        } else {
-          await axios.post(`${API_BASE_URL}/api/auth/register/admin`, formData);
-          setMessage('Admin registered successfully! Please sign in.');
-        }
+        await axios.post(`${API_BASE_URL}/api/auth/register/center`, formData);
+        setMessage('Diagnostic Center registered successfully! Please sign in.');
         setIsLogin(true);
         setFormData({ email: '', password: '' });
       }
@@ -73,31 +67,12 @@ export default function Login() {
               <h1 className="text-2xl font-black text-gray-900 tracking-tighter leading-none">Tele-Radiology</h1>
             </div>
             <h2 className="text-3xl font-bold text-gray-800">
-              {isLogin ? 'Sign In to Portal' : (regRole === 'center' ? 'Register Diagnostic Center' : 'Create Admin Account')}
+              {isLogin ? 'Sign In to Portal' : 'Register Diagnostic Center'}
             </h2>
             <p className="text-gray-500 mt-2 text-sm">
-              {isLogin ? 'Sign in to access Diagnostic Center, Doctor, or Admin dashboard' : 'Create your account to start managing studies'}
+              {isLogin ? 'Sign in to access Diagnostic Center, Doctor, or Admin dashboard' : 'Create your Diagnostic Center account to manage and upload studies'}
             </p>
           </div>
-
-          {!isLogin && (
-            <div className="flex bg-gray-100 p-1 rounded-lg mb-6 text-sm font-semibold">
-              <button
-                type="button"
-                onClick={() => setRegRole('center')}
-                className={`flex-1 py-2 rounded-md transition ${regRole === 'center' ? 'bg-white shadow text-blue-600' : 'text-gray-600'}`}
-              >
-                Diagnostic Center
-              </button>
-              <button
-                type="button"
-                onClick={() => setRegRole('admin')}
-                className={`flex-1 py-2 rounded-md transition ${regRole === 'admin' ? 'bg-white shadow text-blue-600' : 'text-gray-600'}`}
-              >
-                Admin
-              </button>
-            </div>
-          )}
 
           {message && (
             <div className={`p-4 mb-6 rounded-lg text-sm font-medium ${message.includes('successfully') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
@@ -105,15 +80,16 @@ export default function Login() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-5" autoComplete="off">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
               <input 
                 type="email" 
                 name="email" 
                 required 
+                autoComplete="off"
                 className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
-                placeholder={regRole === 'center' ? 'center@diagnostics.com' : 'admin@example.com'}
+                placeholder={isLogin ? 'name@example.com' : 'center@diagnostics.com'}
                 value={formData.email} 
                 onChange={handleChange} 
               />
@@ -125,6 +101,7 @@ export default function Login() {
                 type="password" 
                 name="password" 
                 required 
+                autoComplete="new-password"
                 className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
                 placeholder="••••••••"
                 value={formData.password} 
@@ -137,7 +114,7 @@ export default function Login() {
               disabled={loading}
               className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 transition-all disabled:opacity-50 cursor-pointer text-sm"
             >
-              {loading ? 'Processing...' : (isLogin ? 'Sign In' : (regRole === 'center' ? 'Register Diagnostic Center' : 'Register Admin'))}
+              {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Register Diagnostic Center')}
             </button>
           </form>
 
@@ -145,7 +122,7 @@ export default function Login() {
           {isLogin && (
             <div className="mt-6 pt-5 border-t border-gray-100">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 text-center">Quick Demo Accounts</p>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => fillDemo('center@teleradiology.com', 'center123')}
@@ -160,26 +137,19 @@ export default function Login() {
                 >
                   🩺 Doctor
                 </button>
-                <button
-                  type="button"
-                  onClick={() => fillDemo('admin@teleradiology.com', 'admin123')}
-                  className="px-2 py-1.5 text-xs bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-md font-semibold border border-purple-200 transition"
-                >
-                  ⚙️ Admin
-                </button>
               </div>
             </div>
           )}
 
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
-              {isLogin ? "Need a Center or Admin account? " : "Already have an account? "}
+              {isLogin ? "Need a Diagnostic Center account? " : "Already have an account? "}
               <button 
                 type="button" 
                 onClick={() => { setIsLogin(!isLogin); setMessage(''); }}
                 className="text-blue-600 hover:text-blue-800 font-semibold focus:outline-none"
               >
-                {isLogin ? 'Register here' : 'Sign in here'}
+                {isLogin ? 'Register Center here' : 'Sign in here'}
               </button>
             </p>
           </div>

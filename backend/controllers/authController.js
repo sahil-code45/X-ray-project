@@ -10,6 +10,7 @@ exports.registerDoctor = async (req, res) => {
         const mbbsFile = req.files?.mbbsDegreeFile?.[0] || req.files?.degreeFile?.[0] || req.file;
         const pgFile = req.files?.pgDegreeFile?.[0];
         const sigFile = req.files?.signatureFile?.[0];
+        const regFile = req.files?.registrationFile?.[0] || req.files?.registrationCertificate?.[0];
 
         const toRelativeUrl = (file) => {
             if (!file) return null;
@@ -22,6 +23,7 @@ exports.registerDoctor = async (req, res) => {
         const mbbsDegreeFileUrl = toRelativeUrl(mbbsFile);
         const pgDegreeFileUrl = toRelativeUrl(pgFile);
         const signatureFileUrl = toRelativeUrl(sigFile);
+        const registrationFileUrl = toRelativeUrl(regFile);
         const degreeFileUrl = mbbsDegreeFileUrl;
 
         const existingUser = await User.findOne({ where: { email } });
@@ -40,13 +42,14 @@ exports.registerDoctor = async (req, res) => {
             panCard, 
             aadhaarCard, 
             registrationNumber: registrationNumber || '',
+            registrationFileUrl,
             mbbsDegreeFileUrl,
             pgDegreeFileUrl,
             signatureFileUrl,
             degreeFileUrl, 
             address, 
             phoneNumber, 
-            reportFee 
+            reportFee: (reportFee !== undefined && reportFee !== '' && reportFee !== null) ? Number(reportFee) : 0 
         }, { transaction: t });
 
         await t.commit();
@@ -58,18 +61,7 @@ exports.registerDoctor = async (req, res) => {
 };
 
 exports.registerAdmin = async (req, res) => {
-    try {
-        const { email, password } = req.body;
-        const existingUser = await User.findOne({ where: { email } });
-        if (existingUser) return res.status(400).json({ message: 'Email already exists' });
-        
-        const hashedPassword = await bcrypt.hash(password, 10);
-        await User.create({ email, password: hashedPassword, role: 'admin', status: 'approved' });
-        
-        res.status(201).json({ message: 'Admin registered successfully.' });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+    return res.status(403).json({ message: 'Admin registration is disabled. Only the system administrator account can be used.' });
 };
 
 exports.registerCenter = async (req, res) => {
@@ -96,6 +88,11 @@ exports.login = async (req, res) => {
         }
         const validPassword = await bcrypt.compare(password, user.password);
         if (!validPassword) return res.status(401).json({ message: 'Invalid credentials' });
+
+        // Ensure only aman123@gmail.com can log in as admin
+        if (user.role === 'admin' && user.email.toLowerCase() !== 'aman123@gmail.com') {
+            return res.status(403).json({ message: 'Only authorized administrator (aman123@gmail.com) can sign in.' });
+        }
 
         const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET || 'secretkey', { expiresIn: '1d' });
         res.json({ token, role: user.role });

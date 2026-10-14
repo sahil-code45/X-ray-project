@@ -8,6 +8,7 @@ router.use(verifyRole('admin'));
 
 router.get('/stats', adminController.getAdminStats);
 router.get('/cases', adminController.getAllCases);
+router.get('/pending-count', adminController.getPendingCount);
 router.get('/pending-users', adminController.getPendingUsers);
 router.get('/approved-users', adminController.getApprovedDoctors);
 router.put('/approve/:id', adminController.approveUser);

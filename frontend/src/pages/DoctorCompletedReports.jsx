@@ -194,6 +194,16 @@ export default function DoctorCompletedReports() {
                         )}
                       </div>
                       <div className="text-xs text-gray-500 mt-0.5">{c.patientAge} Yrs / {c.patientGender}</div>
+                      {(c.report?.testName || c.testName) && (
+                        <div className="mt-1 flex items-center gap-1.5">
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                            {c.report?.modality || c.modality || 'Study'}
+                          </span>
+                          <span className="text-xs font-semibold text-gray-700 truncate max-w-xs" title={c.report?.testName || c.testName}>
+                            {c.report?.testName || c.testName}
+                          </span>
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm text-gray-800 max-w-md line-clamp-2">{c.studyNotes || '—'}</div>
