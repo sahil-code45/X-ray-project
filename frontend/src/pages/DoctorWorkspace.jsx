@@ -7,6 +7,7 @@ import * as cornerstone from 'cornerstone-core';
 import * as cornerstoneMath from 'cornerstone-math';
 import * as cornerstoneTools from 'cornerstone-tools';
 import cornerstoneWADOImageLoader from 'cornerstone-wado-image-loader';
+import dicomParser from 'dicom-parser';
 import Hammer from 'hammerjs';
 import { CT_TEMPLATES } from '../utils/ctTemplates';
 import { MRI_TEMPLATES } from '../utils/mriTemplates';
@@ -66,6 +67,9 @@ export default function DoctorWorkspace() {
   const [message, setMessage] = useState('');
   const [caseDetails, setCaseDetails] = useState(null);
   const [isDicom, setIsDicom] = useState(true);
+  const [dicomMeta, setDicomMeta] = useState(null);
+  const [viewMode, setViewMode] = useState('split'); // 'split' | 'viewer' | 'report'
+  const [activeTool, setActiveTool] = useState('Wwwc');
   const [currentSlice, setCurrentSlice] = useState(0);
   const [totalSlices, setTotalSlices] = useState(0);
   const [allImageIds, setAllImageIds] = useState([]);
@@ -118,6 +122,13 @@ export default function DoctorWorkspace() {
           
           if (metaRes.data && metaRes.data.slices && metaRes.data.slices.length > 0) {
             setIsDicom(true);
+            setDicomMeta(metaRes.data.metadata || null);
+            if (metaRes.data.modality) {
+              setSelectedModality(prev => prev || metaRes.data.modality);
+            }
+            if (metaRes.data.testName) {
+              setSelectedTestName(prev => prev || metaRes.data.testName);
+            }
             initCornerstone(token, metaRes.data.slices);
           } else {
             setIsDicom(false);
@@ -134,9 +145,42 @@ export default function DoctorWorkspace() {
 
     return () => {
       isMounted = false;
-      if (viewerRef.current) cornerstone.disable(viewerRef.current);
+      if (viewerRef.current) {
+        try {
+          cornerstone.disable(viewerRef.current);
+        } catch (e) {}
+      }
     };
   }, [id]);
+
+  useEffect(() => {
+    if (viewerRef.current && isDicom) {
+      setTimeout(() => {
+        try {
+          cornerstone.resize(viewerRef.current);
+        } catch (e) {}
+      }, 100);
+    }
+  }, [viewMode, isDicom]);
+
+  // Keyboard navigation for DICOM slices (Arrow keys)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const activeTag = document.activeElement?.tagName;
+      if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || document.activeElement?.isContentEditable) {
+        return;
+      }
+      if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        handleSliceChange(currentSlice - 1);
+      } else if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        handleSliceChange(currentSlice + 1);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentSlice, totalSlices, allImageIds]);
 
   const initCornerstone = async (token, slices) => {
     cornerstoneTools.external.cornerstone = cornerstone;
@@ -217,7 +261,16 @@ export default function DoctorWorkspace() {
   };
 
   const setTool = (toolName) => {
+    setActiveTool(toolName);
     cornerstoneTools.setToolActive(toolName, { mouseButtonMask: 1 });
+  };
+
+  const handleReset = () => {
+    if (viewerRef.current) {
+      try {
+        cornerstone.reset(viewerRef.current);
+      } catch (e) {}
+    }
   };
 
   const handleSliceChange = async (newIndex) => {
@@ -363,11 +416,48 @@ export default function DoctorWorkspace() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          {/* View Mode Toggle */}
+          <div className="flex bg-gray-900 p-0.5 rounded-lg border border-gray-800">
+            <button
+              type="button"
+              onClick={() => setViewMode('viewer')}
+              className={`px-3 py-1 text-xs font-bold rounded-md transition cursor-pointer ${viewMode === 'viewer' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-400 hover:text-white'}`}
+              title="Full screen DICOM Viewer"
+            >
+              🖼️ Viewer
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('split')}
+              className={`px-3 py-1 text-xs font-bold rounded-md transition cursor-pointer ${viewMode === 'split' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-400 hover:text-white'}`}
+              title="Split View: Viewer on Left, Report on Right"
+            >
+              🌓 Split
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('report')}
+              className={`px-3 py-1 text-xs font-bold rounded-md transition cursor-pointer ${viewMode === 'report' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-400 hover:text-white'}`}
+              title="Full screen Report Editor"
+            >
+              📝 Report
+            </button>
+          </div>
+
+          <a
+            href={`${API_BASE_URL}/api/cases/${id}/download?token=${localStorage.getItem('token')}`}
+            download
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold rounded-lg transition shadow-sm"
+            title="Download complete study package for RadiAnt or MicroDicom"
+          >
+            <span>📥</span> Download (RadiAnt / MicroDicom)
+          </a>
+
           {caseDetails?.isReportWrong ? (
             <span className="bg-red-500/25 text-red-300 border border-red-500/50 text-xs px-3 py-1 rounded-full font-bold flex items-center gap-1.5 animate-pulse">
               <span className="w-2 h-2 rounded-full bg-red-400"></span>
-              Something Wrong in Report
+              Something Wrong
             </span>
           ) : caseDetails?.isModified ? (
             <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs px-3 py-1 rounded-full font-bold flex items-center gap-1.5">
@@ -375,86 +465,154 @@ export default function DoctorWorkspace() {
               Modify
             </span>
           ) : null}
-          {caseDetails?.report ? (
-            <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs px-3 py-1 rounded-full font-bold flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
-              Editing Existing Report
-            </span>
-          ) : (
-            <span className="bg-blue-500/20 text-blue-300 border border-blue-500/40 text-xs px-3 py-1 rounded-full font-bold flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-blue-400"></span>
-              Initial Diagnosis
-            </span>
-          )}
         </div>
       </header>
 
       {/* Main Workspace Body */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Viewer / Download Area */}
-        {/* Image viewer commented out as requested
-        <div className={`w-2/3 flex flex-col p-2 ${isDicom ? 'bg-black' : 'bg-gray-100 items-center justify-center'}`}>
-          {isDicom ? (
-            <>
-              <div className="flex space-x-2 mb-2 text-white text-sm flex-shrink-0">
-                <button onClick={() => setTool('Wwwc')} className="px-3 py-1 bg-gray-700 rounded hover:bg-gray-600">WW/WC (Contrast)</button>
-                <button onClick={() => setTool('Zoom')} className="px-3 py-1 bg-gray-700 rounded hover:bg-gray-600">Zoom</button>
-                <button onClick={() => setTool('Pan')} className="px-3 py-1 bg-gray-700 rounded hover:bg-gray-600">Pan</button>
-                <button onClick={() => setTool('Length')} className="px-3 py-1 bg-gray-700 rounded hover:bg-gray-600">Measure</button>
-                <button onClick={() => cornerstone.reset(viewerRef.current)} className="px-3 py-1 bg-gray-700 rounded hover:bg-gray-600 ml-auto">Reset</button>
-              </div>
-              <div ref={viewerRef} className="flex-1 w-full bg-black border border-gray-600 relative min-h-0 overflow-hidden oncontextmenu-false">
-              </div>
-              
-              {/* Slice Slider UI * /}
-              {totalSlices > 1 && (
-                <div className="bg-gray-800 p-3 flex items-center gap-4 text-white text-sm flex-shrink-0">
-                  <button 
-                    onClick={() => handleSliceChange(currentSlice - 1)}
-                    disabled={currentSlice === 0}
-                    className={`px-3 py-1 rounded font-bold ${currentSlice === 0 ? 'bg-gray-600 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500'}`}
-                  >
-                    Prev
-                  </button>
-                  <div className="flex-1 flex flex-col items-center">
-                    <input 
-                      type="range" 
-                      min="0" 
-                      max={totalSlices - 1} 
-                      value={currentSlice}
-                      onChange={(e) => handleSliceChange(parseInt(e.target.value))}
-                      className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
-                    />
-                    <span className="mt-1 text-gray-400">Slice: {currentSlice + 1} / {totalSlices}</span>
+        {/* Left Side: DICOM Viewer Area */}
+        {viewMode !== 'report' && (
+          <div className={`${viewMode === 'viewer' ? 'w-full' : 'w-1/2 lg:w-3/5'} flex flex-col bg-black border-r border-gray-800 relative z-10 transition-all duration-200`}>
+            {isDicom ? (
+              <>
+                {/* Viewer Tools Header */}
+                <div className="bg-gray-950 px-3 py-2 border-b border-gray-800 flex items-center justify-between gap-2 text-xs text-gray-300 flex-shrink-0">
+                  <div className="flex items-center gap-1.5 overflow-x-auto py-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setTool('Wwwc')}
+                      className={`px-2.5 py-1 rounded font-bold transition cursor-pointer flex items-center gap-1 ${activeTool === 'Wwwc' ? 'bg-indigo-600 text-white' : 'bg-gray-800 hover:bg-gray-700 text-gray-300'}`}
+                      title="Window Width / Window Center (Contrast/Brightness)"
+                    >
+                      <span>☀️</span> Contrast
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTool('Zoom')}
+                      className={`px-2.5 py-1 rounded font-bold transition cursor-pointer flex items-center gap-1 ${activeTool === 'Zoom' ? 'bg-indigo-600 text-white' : 'bg-gray-800 hover:bg-gray-700 text-gray-300'}`}
+                      title="Zoom in and out (Right click & drag)"
+                    >
+                      <span>🔍</span> Zoom
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTool('Pan')}
+                      className={`px-2.5 py-1 rounded font-bold transition cursor-pointer flex items-center gap-1 ${activeTool === 'Pan' ? 'bg-indigo-600 text-white' : 'bg-gray-800 hover:bg-gray-700 text-gray-300'}`}
+                      title="Pan / Move scan around"
+                    >
+                      <span>✋</span> Pan
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTool('Length')}
+                      className={`px-2.5 py-1 rounded font-bold transition cursor-pointer flex items-center gap-1 ${activeTool === 'Length' ? 'bg-indigo-600 text-white' : 'bg-gray-800 hover:bg-gray-700 text-gray-300'}`}
+                      title="Measure distance / millimeters"
+                    >
+                      <span>📏</span> Measure
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleReset}
+                      className="px-2.5 py-1 bg-gray-800 hover:bg-gray-700 rounded text-gray-300 transition cursor-pointer font-bold"
+                      title="Reset image position and zoom"
+                    >
+                      ↺ Reset
+                    </button>
                   </div>
-                  <button 
-                    onClick={() => handleSliceChange(currentSlice + 1)}
-                    disabled={currentSlice === totalSlices - 1}
-                    className={`px-3 py-1 rounded font-bold ${currentSlice === totalSlices - 1 ? 'bg-gray-600 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500'}`}
-                  >
-                    Next
-                  </button>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="text-center p-8 bg-white rounded-lg shadow-md">
-              <svg className="mx-auto h-16 w-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-              </svg>
-              <h2 className="text-2xl font-bold text-gray-800 mb-2">Non-DICOM File Attached</h2>
-              <p className="text-gray-600 mb-6 max-w-md mx-auto">This study contains a custom file or nested folder instead of standard DICOM (.dcm) images. Please download it to view locally on your computer.</p>
-              <a href={`${API_BASE_URL}/api/cases/${id}/dicom-stream?token=${localStorage.getItem('token')}`} download className="inline-block bg-indigo-600 text-white font-bold py-3 px-8 rounded hover:bg-indigo-700 shadow-md transition-colors">
-                Download File
-              </a>
-            </div>
-          )}
-        </div>
-        */}
 
-        {/* Reporting Form Area */}
-        {/* Reporting Form Area */}
-        <div className="w-full max-w-4xl mx-auto bg-white p-8 overflow-y-auto rounded-xl shadow-2xl my-6 flex flex-col border border-gray-200">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-mono text-cyan-400 font-bold bg-cyan-950/70 border border-cyan-800 px-2 py-0.5 rounded">
+                      {caseDetails?.modality || dicomMeta?.modality || 'DICOM'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Viewport Canvas with Medical Overlays */}
+                <div className="flex-1 w-full bg-black relative min-h-0 overflow-hidden flex items-center justify-center">
+                  <div
+                    ref={viewerRef}
+                    className="w-full h-full bg-black relative"
+                    style={{ minHeight: '300px' }}
+                  />
+
+                  {/* DICOM Info Overlays */}
+                  <div className="absolute top-2.5 left-3 text-[11px] font-mono text-emerald-400 bg-black/70 px-2.5 py-1.5 rounded pointer-events-none space-y-0.5 border border-emerald-500/20 backdrop-blur-xs">
+                    <p className="font-bold text-white">{caseDetails?.patientName || dicomMeta?.patientName || 'Patient'}</p>
+                    <p className="text-gray-300 text-[10px]">ID: {caseDetails?.patientId || dicomMeta?.patientId || 'N/A'}</p>
+                    <p className="text-gray-400 text-[10px]">{caseDetails?.patientAge ? `${caseDetails.patientAge}Y` : ''} {caseDetails?.patientGender || ''}</p>
+                  </div>
+
+                  <div className="absolute top-2.5 right-3 text-[11px] font-mono text-cyan-400 bg-black/70 px-2.5 py-1.5 rounded pointer-events-none text-right space-y-0.5 border border-cyan-500/20 backdrop-blur-xs">
+                    <p className="font-bold">{dicomMeta?.manufacturer || 'Medical Scanner'}</p>
+                    <p className="text-gray-300 text-[10px]">{dicomMeta?.scannerModel || caseDetails?.modality || 'CT/MRI'}</p>
+                    {dicomMeta?.studyDate && <p className="text-gray-400 text-[10px]">{dicomMeta.studyDate}</p>}
+                  </div>
+
+                  <div className="absolute bottom-2.5 right-3 text-[11px] font-mono text-yellow-300 bg-black/80 px-2.5 py-1 rounded pointer-events-none border border-yellow-500/30">
+                    Slice: <span className="font-bold text-white">{currentSlice + 1}</span> / {totalSlices || 1}
+                    {dicomMeta?.sliceThickness ? ` (${dicomMeta.sliceThickness}mm)` : ''}
+                  </div>
+                </div>
+
+                {/* Slice Navigation Slider */}
+                {totalSlices > 1 && (
+                  <div className="bg-gray-950 p-2.5 border-t border-gray-800 flex items-center gap-3 text-white text-xs flex-shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => handleSliceChange(currentSlice - 1)}
+                      disabled={currentSlice === 0}
+                      className={`px-3 py-1 rounded font-bold transition ${currentSlice === 0 ? 'bg-gray-800 text-gray-500 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer'}`}
+                    >
+                      ◀ Prev
+                    </button>
+
+                    <div className="flex-1 flex items-center gap-2">
+                      <input
+                        type="range"
+                        min="0"
+                        max={totalSlices - 1}
+                        value={currentSlice}
+                        onChange={(e) => handleSliceChange(parseInt(e.target.value, 10))}
+                        className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                      />
+                      <span className="text-[11px] font-mono text-gray-400 whitespace-nowrap">
+                        {currentSlice + 1}/{totalSlices}
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleSliceChange(currentSlice + 1)}
+                      disabled={currentSlice === totalSlices - 1}
+                      className={`px-3 py-1 rounded font-bold transition ${currentSlice === totalSlices - 1 ? 'bg-gray-800 text-gray-500 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer'}`}
+                    >
+                      Next ▶
+                    </button>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-gray-900 text-gray-300">
+                <span className="text-5xl block mb-3">📁</span>
+                <h3 className="text-base font-bold text-white">Study File Ready</h3>
+                <p className="text-xs text-gray-400 max-w-sm mt-1 mb-4">
+                  This study is available as a full archive package. Download and open in RadiAnt DICOM Viewer or MicroDicom on your computer.
+                </p>
+                <a
+                  href={`${API_BASE_URL}/api/cases/${id}/download?token=${localStorage.getItem('token')}`}
+                  download
+                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-xs shadow-md transition flex items-center gap-2 cursor-pointer"
+                >
+                  <span>📥</span> Download Full Study Package (.zip)
+                </a>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Right Side: Reporting Form Area */}
+        {viewMode !== 'viewer' && (
+          <div className={`${viewMode === 'report' ? 'w-full max-w-5xl mx-auto' : 'w-1/2 lg:w-2/5'} bg-white p-6 sm:p-8 overflow-y-auto flex flex-col border-l border-gray-200 transition-all duration-200`}>
           <div className="flex items-center justify-center mb-6 pb-4 border-b text-center">
             <div>
               <h2 className="text-3xl font-extrabold text-gray-800">Diagnosis Report</h2>
@@ -682,6 +840,7 @@ export default function DoctorWorkspace() {
             </button>
           </form>
         </div>
+        )}
       </div>
     </div>
   );

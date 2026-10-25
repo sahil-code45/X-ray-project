@@ -10,7 +10,13 @@ const config = require(__dirname + '/../config/config.json')[env];
 const db = {};
 
 let sequelize;
-if (process.env.DATABASE_URL) {
+if (process.env.USE_SQLITE === 'true') {
+  sequelize = new Sequelize({
+    dialect: 'sqlite',
+    storage: ':memory:',
+    logging: false
+  });
+} else if (process.env.DATABASE_URL) {
   sequelize = new Sequelize(process.env.DATABASE_URL, {
     dialect: 'postgres',
     logging: false,
@@ -24,7 +30,11 @@ if (process.env.DATABASE_URL) {
 } else if (config.use_env_variable) {
   sequelize = new Sequelize(process.env[config.use_env_variable], config);
 } else {
-  sequelize = new Sequelize(config.database, config.username, config.password, config);
+  const dbUser = process.env.DB_USER || config.username;
+  const dbPassword = process.env.DB_PASSWORD || config.password;
+  const dbName = process.env.DB_NAME || config.database;
+  const dbHost = process.env.DB_HOST || config.host;
+  sequelize = new Sequelize(dbName, dbUser, dbPassword, { ...config, host: dbHost });
 }
 
 fs

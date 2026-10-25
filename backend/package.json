@@ -16,6 +16,7 @@
     "archiver": "^8.0.0",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.6",
+    "dicom-parser": "^1.8.21",
     "dotenv": "^18.0.4",
     "express": "^5.2.1",
     "extract-zip": "^2.0.1",

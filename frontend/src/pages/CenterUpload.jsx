@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import ReportViewer from '../components/ReportViewer';
 import SomethingWrongModal from '../components/SomethingWrongModal';
@@ -8,11 +8,18 @@ import { downloadReportPdf, openReportPdfInNewTab } from '../utils/downloadPdf';
 import { API_BASE_URL } from '../config';
 
 export default function CenterUpload() {
+  const [searchParams] = useSearchParams();
+  const draftId = searchParams.get('draftId');
+  const [loadedDraft, setLoadedDraft] = useState(null);
+  const [loadingDraft, setLoadingDraft] = useState(false);
+
   const [caseForm, setCaseForm] = useState({ 
     patientId: '', 
     patientName: '', 
     patientAge: '', 
-    patientGender: 'Male', 
+    patientGender: 'Male',
+    modality: 'MRI',
+    testName: '',
     studyNotes: '' 
   });
   const [dicomFile, setDicomFile] = useState(null);
@@ -100,6 +107,42 @@ export default function CenterUpload() {
     fetchRecentCases();
   }, []);
 
+  useEffect(() => {
+    if (!draftId) {
+      setLoadedDraft(null);
+      return;
+    }
+    const loadDraftDetails = async () => {
+      try {
+        setLoadingDraft(true);
+        const token = localStorage.getItem('token');
+        const res = await axios.get(`${API_BASE_URL}/api/cases/${draftId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const d = res.data;
+        if (d) {
+          setLoadedDraft(d);
+          setCaseForm({
+            patientId: d.patientId || '',
+            patientName: d.patientName || '',
+            patientAge: d.patientAge ? String(d.patientAge) : '',
+            patientGender: d.patientGender || 'Male',
+            modality: d.modality || 'MRI',
+            testName: d.testName || '',
+            studyNotes: d.studyNotes || ''
+          });
+          toast.info(`Loaded machine draft for ${d.patientName || 'Patient'}`);
+        }
+      } catch (err) {
+        console.error('Failed to load draft:', err);
+        toast.error('Could not load draft case details.');
+      } finally {
+        setLoadingDraft(false);
+      }
+    };
+    loadDraftDetails();
+  }, [draftId]);
+
   const handleChange = (e) => setCaseForm({ ...caseForm, [e.target.name]: e.target.value });
   
   const handleFileChange = (e) => {
@@ -126,9 +169,25 @@ export default function CenterUpload() {
     }
   };
 
+  const handleClearDraft = () => {
+    setLoadedDraft(null);
+    setCaseForm({
+      patientId: '',
+      patientName: '',
+      patientAge: '',
+      patientGender: 'Male',
+      modality: 'MRI',
+      testName: '',
+      studyNotes: ''
+    });
+    setDicomFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    navigate('/center/upload');
+  };
+
   const handleUpload = async (e) => {
     e.preventDefault();
-    if (!dicomFile) {
+    if (!loadedDraft && !dicomFile) {
       toast.warning('Please select a DICOM or ZIP study file.');
       return setMessage('Please select a DICOM or ZIP study file.');
     }
@@ -138,23 +197,40 @@ export default function CenterUpload() {
 
     const data = new FormData();
     Object.keys(caseForm).forEach(key => data.append(key, caseForm[key]));
-    data.append('dicomFile', dicomFile);
+    if (dicomFile) {
+      data.append('dicomFile', dicomFile);
+    }
 
     try {
       const token = localStorage.getItem('token');
-      await axios.post(`${API_BASE_URL}/api/cases/upload`, data, {
-        headers: { Authorization: `Bearer ${token}` },
-        onUploadProgress: (progressEvent) => {
-          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-          setUploadProgress(percentCompleted);
-        }
-      });
-      toast.success('Patient case submitted successfully to the Radiologist pool!');
-      setMessage('Patient case submitted successfully!');
-      setCaseForm({ patientId: '', patientName: '', patientAge: '', patientGender: 'Male', studyNotes: '' });
-      setDicomFile(null);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      fetchRecentCases();
+      if (loadedDraft) {
+        // Publish existing draft to doctor pool
+        await axios.post(`${API_BASE_URL}/api/cases/draft/${loadedDraft.id}/publish`, data, {
+          headers: { Authorization: `Bearer ${token}` },
+          onUploadProgress: (progressEvent) => {
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 1));
+            setUploadProgress(percentCompleted);
+          }
+        });
+        toast.success('Draft published to Radiologist pool successfully!');
+        setMessage('Draft published to Radiologist pool successfully!');
+        navigate('/center/cases');
+      } else {
+        // Direct new manual upload
+        await axios.post(`${API_BASE_URL}/api/cases/upload`, data, {
+          headers: { Authorization: `Bearer ${token}` },
+          onUploadProgress: (progressEvent) => {
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            setUploadProgress(percentCompleted);
+          }
+        });
+        toast.success('Patient case submitted successfully to the Radiologist pool!');
+        setMessage('Patient case submitted successfully!');
+        setCaseForm({ patientId: '', patientName: '', patientAge: '', patientGender: 'Male', modality: 'MRI', testName: '', studyNotes: '' });
+        setDicomFile(null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        fetchRecentCases();
+      }
     } catch (error) {
       const errMsg = error.response?.data?.message || 'Failed to submit case.';
       toast.error(errMsg);
@@ -247,12 +323,50 @@ export default function CenterUpload() {
         </div>
       )}
 
+      {/* Draft Review Notice Banner */}
+      {loadedDraft && (
+        <div className="bg-gradient-to-r from-indigo-50 to-blue-50 border-2 border-indigo-200 p-5 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm animate-fadeIn">
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-lg shadow-sm">
+              📡
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded">
+                  Machine Sync Ingest
+                </span>
+                <span className="text-xs text-gray-500 font-medium">
+                  Draft #{loadedDraft.id}
+                </span>
+              </div>
+              <h3 className="text-base font-bold text-gray-900 mt-0.5">
+                Reviewing Synced Scan: <span className="text-indigo-600">{loadedDraft.patientName || 'Patient'}</span> ({loadedDraft.modality || 'DICOM'})
+              </h3>
+              <p className="text-xs text-gray-600 mt-0.5">
+                Patient demographics and test details have been auto-populated from DICOM tags. Review or adjust notes below, then submit to send to the radiologist pool.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleClearDraft}
+            className="shrink-0 px-3.5 py-2 text-xs font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition flex items-center gap-1.5 cursor-pointer"
+          >
+            <span>✕ Discard / New Case</span>
+          </button>
+        </div>
+      )}
+
       {/* Upload Form Card */}
       <div className="bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden">
         <div className="px-8 py-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100 flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">Patient & Case Details Form</h2>
-            <p className="text-sm text-gray-600 mt-1">Please provide accurate patient demographics and clinical history.</p>
+            <h2 className="text-xl font-bold text-gray-900">
+              {loadedDraft ? 'Review & Publish Draft Case' : 'Patient & Case Details Form'}
+            </h2>
+            <p className="text-sm text-gray-600 mt-1">
+              {loadedDraft ? 'Verify machine data before publishing to radiologists.' : 'Please provide accurate patient demographics and clinical history.'}
+            </p>
           </div>
           <span className="hidden sm:inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
             Direct Radiologist Pipeline
@@ -261,7 +375,7 @@ export default function CenterUpload() {
 
         <div className="p-8">
           <form onSubmit={handleUpload} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1" >
                   Patient ID <span className="text-xs text-black-500 font-normal">*</span>
@@ -314,6 +428,32 @@ export default function CenterUpload() {
                   <option>Female</option>
                   <option>Other</option>
                 </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Modality *</label>
+                <select
+                  name="modality"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm transition bg-white font-medium"
+                  value={caseForm.modality}
+                  onChange={handleChange}
+                >
+                  <option value="MRI">MRI (Magnetic Resonance)</option>
+                  <option value="CT">CT (Computed Tomography)</option>
+                  <option value="X-Ray">X-Ray (CR / DX)</option>
+                  <option value="Ultrasound">Ultrasound (US)</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Test Name / Study Description *</label>
+                <input
+                  type="text"
+                  name="testName"
+                  required
+                  placeholder="e.g. MRI Brain Routine / CT Chest"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm transition"
+                  value={caseForm.testName}
+                  onChange={handleChange}
+                />
               </div>
             </div>
 
@@ -370,6 +510,24 @@ export default function CenterUpload() {
                       {(dicomFile.size / (1024 * 1024)).toFixed(2)} MB • Click or drag to replace file
                     </span>
                   </div>
+                ) : loadedDraft ? (
+                  <div className="flex flex-col items-center">
+                    <div className="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mb-3 shadow-inner">
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-800 border border-green-200 mb-2">
+                      <span className="w-2 h-2 rounded-full bg-green-600"></span>
+                      Machine Scan Linked & Attached
+                    </div>
+                    <span className="text-base font-bold text-gray-800">
+                      {caseForm.testName || `${loadedDraft.modality} Scan Study`}
+                    </span>
+                    <span className="text-xs text-gray-500 mt-1 max-w-sm text-center">
+                      Original DICOM study from {loadedDraft.modality} machine is linked. Click or drop here only if you wish to replace with a new file.
+                    </span>
+                  </div>
                 ) : (
                   <div className="flex flex-col items-center">
                     <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-3">
@@ -402,6 +560,13 @@ export default function CenterUpload() {
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
                     </svg>
                     {uploadProgress < 100 ? `Uploading... (${uploadProgress}%)` : 'Extracting & Submitting... Please wait'}
+                  </>
+                ) : loadedDraft ? (
+                  <>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Publish & Assign to Doctor Pool 🚀
                   </>
                 ) : (
                   <>

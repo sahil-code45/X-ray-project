@@ -2,57 +2,43 @@ const { XrayCase, Report, Payout, DoctorProfile, DoctorTestPricing, sequelize } 
 const fs = require('fs');
 const path = require('path');
 const PDFDocument = require('pdfkit');
+const { inspectDicomPath } = require('../utils/dicomHelper');
+const { ZipArchive } = require('archiver');
 
-/*
 exports.getDicomMetadata = async (req, res) => {
     try {
         const { id } = req.params;
-        const doctorId = req.user.id;
+        const user = req.user;
 
-        const xrayCase = await XrayCase.findOne({ where: { id, assignedDoctorId: doctorId } });
-        if (!xrayCase) return res.status(403).json({ message: 'Unauthorized or case not found' });
+        const xrayCase = await XrayCase.findByPk(id);
+        if (!xrayCase) return res.status(404).json({ message: 'Case not found' });
+
+        // Access check
+        if (user.role === 'center' && xrayCase.centerId && xrayCase.centerId !== user.id) {
+            return res.status(403).json({ message: 'Unauthorized for this case' });
+        }
 
         const filePath = path.resolve(xrayCase.dicomFileUrl);
-        if (!fs.existsSync(filePath)) return res.status(404).json({ message: 'DICOM file/folder not found' });
-
-        const stat = fs.statSync(filePath);
-        if (stat.isDirectory()) {
-            // Function to get all files recursively
-            const getAllFiles = (dirPath, arrayOfFiles) => {
-                const files = fs.readdirSync(dirPath);
-                let currentFiles = arrayOfFiles || [];
-                files.forEach((file) => {
-                    const fullPath = path.join(dirPath, file);
-                    if (fs.statSync(fullPath).isDirectory()) {
-                        currentFiles = getAllFiles(fullPath, currentFiles);
-                    } else {
-                        currentFiles.push(fullPath);
-                    }
-                });
-                return currentFiles;
-            };
-
-            const allFiles = getAllFiles(filePath);
-            
-            // Filter for DCM files, ignoring .zip or other random files
-            let dcmFiles = allFiles.filter(f => {
-                const lowerF = f.toLowerCase();
-                const baseName = path.basename(f);
-                if (f.includes('__MACOSX') || baseName.startsWith('.')) return false;
-                // Check if it's a dicom file or an extensionless file
-                return lowerF.endsWith('.dcm') || lowerF.endsWith('.img') || (!baseName.includes('.') && !lowerF.endsWith('.zip'));
-            }).sort();
-            
-            // Map absolute paths back to relative slices (from the base filePath)
-            const slices = dcmFiles.map(f => path.relative(filePath, f).replace(/\\/g, '/'));
-            
-            return res.json({ isDirectory: true, slices: slices });
-        } else {
-            if (filePath.toLowerCase().endsWith('.zip') || filePath.toLowerCase().endsWith('.pdf')) {
-                return res.json({ isDirectory: false, slices: [] }); 
-            }
-            return res.json({ isDirectory: false, slices: [path.basename(filePath)] });
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({ message: 'DICOM file or folder not found on server' });
         }
+
+        const inspection = inspectDicomPath(filePath);
+
+        return res.json({
+            caseId: xrayCase.id,
+            patientName: xrayCase.patientName || inspection.metadata?.patientName,
+            patientId: xrayCase.patientId || inspection.metadata?.patientId,
+            patientAge: xrayCase.patientAge || inspection.metadata?.patientAge,
+            patientGender: xrayCase.patientGender || inspection.metadata?.patientGender,
+            modality: xrayCase.modality || inspection.metadata?.modality,
+            testName: xrayCase.testName || inspection.metadata?.testName,
+            isDirectory: inspection.isDirectory,
+            isDicom: inspection.isDicom,
+            totalSlices: inspection.totalSlices,
+            slices: inspection.slices,
+            metadata: inspection.metadata
+        });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -61,11 +47,15 @@ exports.getDicomMetadata = async (req, res) => {
 exports.streamDicom = async (req, res) => {
     try {
         const { id } = req.params;
-        const doctorId = req.user.id;
+        const user = req.user;
         const slice = req.query.slice;
 
-        const xrayCase = await XrayCase.findOne({ where: { id, assignedDoctorId: doctorId } });
-        if (!xrayCase) return res.status(403).json({ message: 'Unauthorized' });
+        const xrayCase = await XrayCase.findByPk(id);
+        if (!xrayCase) return res.status(404).json({ message: 'Case not found' });
+
+        if (user.role === 'center' && xrayCase.centerId && xrayCase.centerId !== user.id) {
+            return res.status(403).json({ message: 'Unauthorized' });
+        }
 
         let filePath = path.resolve(xrayCase.dicomFileUrl);
         if (!fs.existsSync(filePath)) return res.status(404).json({ message: 'File not found' });
@@ -73,35 +63,33 @@ exports.streamDicom = async (req, res) => {
         const stat = fs.statSync(filePath);
         if (stat.isDirectory()) {
             if (!slice) {
-                // If they want to download the directory, zip it on the fly and send
-                const { ZipArchive } = require('archiver');
+                // If they want to download the entire directory as a zip (e.g. for RadiAnt)
                 res.writeHead(200, {
                     'Content-Type': 'application/zip',
-                    'Content-Disposition': `attachment; filename="case_${id}_files.zip"`
+                    'Content-Disposition': `attachment; filename="study_${id}_${encodeURIComponent(xrayCase.patientName || 'case')}.zip"`
                 });
                 
-                const archive = new ZipArchive({ zlib: { level: 1 } }); // level 1 for speed
+                const archive = new ZipArchive({ zlib: { level: 1 } });
                 archive.on('error', function(err) {
                     console.error('Archive error:', err);
-                    if (!res.headersSent) {
-                        res.status(500).json({error: err.message});
-                    }
+                    if (!res.headersSent) res.status(500).json({ error: err.message });
                 });
-                
                 archive.pipe(res);
-                archive.directory(filePath, false); // false means don't include the root folder itself
+                archive.directory(filePath, false);
                 return archive.finalize();
             } else {
-                filePath = path.join(filePath, slice);
+                // Securely normalize slice path to prevent traversal attacks
+                const safeSlice = path.normalize(slice).replace(/^(\.\.[\/\\])+/, '');
+                filePath = path.join(filePath, safeSlice);
                 if (!fs.existsSync(filePath)) return res.status(404).json({ message: 'Slice not found' });
             }
         }
 
         const fileStat = fs.statSync(filePath);
         if (fileStat.isDirectory()) {
-            return res.status(400).json({ message: 'Requested path is a directory, cannot stream' });
+            return res.status(400).json({ message: 'Requested path is a directory' });
         }
-        
+
         const fileSize = fileStat.size;
         const range = req.headers.range;
 
@@ -116,22 +104,34 @@ exports.streamDicom = async (req, res) => {
                 'Accept-Ranges': 'bytes',
                 'Content-Length': chunksize,
                 'Content-Type': 'application/dicom',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Headers': '*'
             };
             res.writeHead(206, head);
-            file.pipe(res);
+            return new Promise((resolve, reject) => {
+                file.pipe(res);
+                file.on('error', reject);
+                res.on('finish', resolve);
+            });
         } else {
             const head = {
                 'Content-Length': fileSize,
                 'Content-Type': 'application/dicom',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Headers': '*'
             };
             res.writeHead(200, head);
-            fs.createReadStream(filePath).pipe(res);
+            return new Promise((resolve, reject) => {
+                const file = fs.createReadStream(filePath);
+                file.pipe(res);
+                file.on('error', reject);
+                res.on('finish', resolve);
+            });
         }
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 };
-*/
 
 exports.submitReport = async (req, res) => {
     const t = await sequelize.transaction();

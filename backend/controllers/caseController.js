@@ -3,11 +3,12 @@ const { XrayCase, sequelize } = require('../models');
 const extract = require('extract-zip');
 const fs = require('fs');
 const path = require('path');
+const { inspectDicomPath } = require('../utils/dicomHelper');
 
 exports.uploadCase = async (req, res) => {
     console.log('--- Upload request received ---');
     try {
-        const { patientId, patientName, patientAge, patientGender, studyNotes } = req.body;
+        const { patientId, patientName, patientAge, patientGender, studyNotes, modality, testName } = req.body;
         let dicomFileUrl = req.file ? req.file.path : null;
         console.log('File uploaded to multer:', dicomFileUrl);
 
@@ -15,7 +16,7 @@ exports.uploadCase = async (req, res) => {
             return res.status(400).json({ message: 'DICOM/ZIP file is required' });
         }
 
-        let status = 'uploaded';
+        let status = req.body.status || (req.path && req.path.includes('machine-sync') ? 'draft' : 'uploaded');
         let extractedDir = null;
 
         // If it's a zip file, extract it safely using streams (extract-zip) to avoid out-of-memory errors
@@ -48,18 +49,69 @@ exports.uploadCase = async (req, res) => {
             dicomFileUrl = extractedDir; // Save directory path instead of zip path
         }
 
+        // Auto-inspect DICOM header for automated machine sync or fallback
+        let dicomInspection = null;
+        try {
+            dicomInspection = inspectDicomPath(path.resolve(dicomFileUrl));
+        } catch (e) {
+            console.warn('DICOM inspection warning:', e.message);
+        }
+
+        const resolvedMeta = dicomInspection?.metadata || {};
+
+        const finalPatientName = (patientName && patientName.trim()) 
+            ? patientName.trim() 
+            : (resolvedMeta.patientName || 'Patient');
+
+        const finalPatientId = (patientId && patientId.trim()) 
+            ? patientId.trim() 
+            : (resolvedMeta.patientId || null);
+
+        let finalPatientAge = null;
+        if (patientAge && !isNaN(parseInt(patientAge, 10))) {
+            finalPatientAge = parseInt(patientAge, 10);
+        } else if (resolvedMeta.patientAge && !isNaN(parseInt(resolvedMeta.patientAge, 10))) {
+            finalPatientAge = parseInt(resolvedMeta.patientAge, 10);
+        }
+
+        const finalPatientGender = patientGender 
+            ? patientGender 
+            : (resolvedMeta.patientGender || 'Other');
+
+        const finalModality = modality 
+            ? modality 
+            : (resolvedMeta.modality || (testName?.includes('MRI') ? 'MRI' : (testName?.includes('CT') ? 'CT' : null)));
+
+        const finalTestName = testName 
+            ? testName 
+            : (resolvedMeta.testName || (finalModality ? `${finalModality} Scan` : null));
+
+        const finalNotes = (studyNotes && studyNotes.trim()) 
+            ? studyNotes.trim() 
+            : (resolvedMeta.studyDescription || (resolvedMeta.scannerModel ? `Acquired on ${resolvedMeta.scannerModel}` : 'Direct machine acquisition'));
+
         const newCase = await XrayCase.create({
-            patientId: patientId ? patientId.trim() : null,
-            patientName,
-            patientAge,
-            patientGender,
-            studyNotes,
+            patientId: finalPatientId,
+            patientName: finalPatientName,
+            patientAge: finalPatientAge,
+            patientGender: finalPatientGender,
+            studyNotes: finalNotes,
             dicomFileUrl,
             status,
-            centerId: req.user?.id || null
+            centerId: req.user?.id || null,
+            modality: finalModality,
+            testName: finalTestName
         });
 
-        res.status(201).json({ message: 'Case uploaded successfully', case: newCase });
+        res.status(201).json({ 
+            message: 'Case uploaded successfully', 
+            case: newCase,
+            dicomInfo: dicomInspection ? {
+                isDicom: dicomInspection.isDicom,
+                totalSlices: dicomInspection.totalSlices,
+                metadata: dicomInspection.metadata
+            } : null
+        });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -73,12 +125,13 @@ exports.getCenterCases = async (req, res) => {
         const role = req.user.role;
 
         const whereClause = role === 'admin' 
-            ? {} 
+            ? { status: { [Op.ne]: 'draft' } } 
             : {
                 [Op.or]: [
                     { centerId: centerId },
                     { centerId: null }
-                ]
+                ],
+                status: { [Op.ne]: 'draft' }
             };
 
         const cases = await XrayCase.findAll({
@@ -98,6 +151,127 @@ exports.getCenterCases = async (req, res) => {
             order: [['createdAt', 'DESC']]
         });
         res.json(cases);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+exports.getCenterDrafts = async (req, res) => {
+    try {
+        const { Op } = require('sequelize');
+        const centerId = req.user.id;
+        const role = req.user.role;
+
+        const whereClause = role === 'admin'
+            ? { status: 'draft' }
+            : {
+                [Op.or]: [
+                    { centerId: centerId },
+                    { centerId: null }
+                ],
+                status: 'draft'
+            };
+
+        const drafts = await XrayCase.findAll({
+            where: whereClause,
+            order: [['createdAt', 'DESC']]
+        });
+
+        // Enrich drafts with DICOM inspection info (slices count, scanner, etc.)
+        const enriched = drafts.map(c => {
+            const caseData = c.toJSON();
+            try {
+                if (caseData.dicomFileUrl && fs.existsSync(path.resolve(caseData.dicomFileUrl))) {
+                    const inspection = inspectDicomPath(path.resolve(caseData.dicomFileUrl));
+                    caseData.dicomInfo = {
+                        isDicom: inspection.isDicom,
+                        totalSlices: inspection.totalSlices,
+                        metadata: inspection.metadata
+                    };
+                }
+            } catch (e) {
+                // Ignore inspection failure
+            }
+            return caseData;
+        });
+
+        res.json(enriched);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+exports.publishDraft = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const xrayCase = await XrayCase.findByPk(id);
+        if (!xrayCase) return res.status(404).json({ message: 'Draft case not found' });
+
+        if (req.user.role === 'center' && xrayCase.centerId && xrayCase.centerId !== req.user.id) {
+            return res.status(403).json({ message: 'Unauthorized for this draft case' });
+        }
+
+        const { patientId, patientName, patientAge, patientGender, studyNotes, modality, testName } = req.body;
+        let dicomFileUrl = xrayCase.dicomFileUrl;
+
+        // If a replacement file was uploaded
+        if (req.file) {
+            dicomFileUrl = req.file.path;
+            if (dicomFileUrl.toLowerCase().endsWith('.zip')) {
+                const extractedDir = path.join(__dirname, '..', 'uploads', `extracted_${Date.now()}`);
+                await extract(path.resolve(dicomFileUrl), { dir: path.resolve(extractedDir) });
+                dicomFileUrl = extractedDir;
+            }
+        }
+
+        // Auto inspect if file or metadata needed
+        let inspection = null;
+        try {
+            if (dicomFileUrl && fs.existsSync(path.resolve(dicomFileUrl))) {
+                inspection = inspectDicomPath(path.resolve(dicomFileUrl));
+            }
+        } catch (e) {}
+
+        const meta = inspection?.metadata || {};
+
+        xrayCase.patientId = (patientId && patientId.trim()) ? patientId.trim() : (xrayCase.patientId || meta.patientId || null);
+        xrayCase.patientName = (patientName && patientName.trim()) ? patientName.trim() : (xrayCase.patientName || meta.patientName || 'Patient');
+        
+        if (patientAge !== undefined && !isNaN(parseInt(patientAge, 10))) {
+            xrayCase.patientAge = parseInt(patientAge, 10);
+        }
+        
+        xrayCase.patientGender = patientGender || xrayCase.patientGender || meta.patientGender || 'Other';
+        xrayCase.studyNotes = (studyNotes && studyNotes.trim()) ? studyNotes.trim() : (xrayCase.studyNotes || meta.studyDescription);
+        xrayCase.modality = modality || xrayCase.modality || meta.modality;
+        xrayCase.testName = testName || xrayCase.testName || meta.testName;
+        xrayCase.dicomFileUrl = dicomFileUrl;
+        xrayCase.status = 'uploaded'; // Published to doctor pool!
+
+        await xrayCase.save();
+
+        res.json({ message: 'Draft published to doctor pool successfully', case: xrayCase });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+exports.deleteDraft = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const xrayCase = await XrayCase.findByPk(id);
+        if (!xrayCase) return res.status(404).json({ message: 'Draft not found' });
+
+        if (req.user.role === 'center' && xrayCase.centerId && xrayCase.centerId !== req.user.id) {
+            return res.status(403).json({ message: 'Unauthorized' });
+        }
+
+        if (xrayCase.status !== 'draft') {
+            return res.status(400).json({ message: 'Only draft cases can be deleted' });
+        }
+
+        await xrayCase.destroy();
+        res.json({ message: 'Draft deleted successfully' });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

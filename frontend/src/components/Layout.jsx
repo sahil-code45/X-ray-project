@@ -9,6 +9,7 @@ export default function Layout({ children, role }) {
   const [openPoolCount, setOpenPoolCount] = useState(0);
   const [doctorPendingCount, setDoctorPendingCount] = useState(0);
   const [adminPendingCount, setAdminPendingCount] = useState(0);
+  const [centerDraftCount, setCenterDraftCount] = useState(0);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -31,6 +32,11 @@ export default function Layout({ children, role }) {
             headers: { Authorization: `Bearer ${token}` }
           });
           setAdminPendingCount(res.data?.count ?? 0);
+        } else if (role === 'center') {
+          const res = await axios.get(`${API_BASE_URL}/api/cases/center/drafts`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          setCenterDraftCount(Array.isArray(res.data) ? res.data.length : 0);
         }
       } catch (e) {
         // ignore
@@ -83,6 +89,13 @@ export default function Layout({ children, role }) {
       name: 'Upload Patient Case', 
       path: '/center', 
       icon: 'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12' 
+    },
+    {
+      name: 'Draft (Machine Ingest)',
+      path: '/center/drafts',
+      badge: centerDraftCount,
+      badgeColor: 'bg-indigo-600',
+      icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10'
     },
     { 
       name: 'Patient Cases & Reports', 

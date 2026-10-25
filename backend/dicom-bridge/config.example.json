@@ -1,0 +1,9 @@
+{
+  "serverUrl": "https://your-domain.com",
+  "centerEmail": "center@example.com",
+  "centerPassword": "CenterPassword123",
+  "watchDirectory": "./incoming_scans",
+  "archiveDirectory": "./synced_archive",
+  "pollIntervalSec": 10
+}
+

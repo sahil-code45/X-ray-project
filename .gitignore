@@ -42,5 +42,10 @@ yarn-error.log*
 
 # Temporary test archives & scripts
 *.zip
+*.dcm
+*.bak
 fix_urls.js
+backend/tests/temp*/
+backend/dicom-bridge/config.json
+coverage/
 

@@ -11,6 +11,7 @@ import AdminDoctors from './pages/AdminDoctors';
 import AdminPricing from './pages/AdminPricing';
 import CenterUpload from './pages/CenterUpload';
 import CenterCases from './pages/CenterCases';
+import CenterDrafts from './pages/CenterDrafts';
 import DoctorDashboard from './pages/DoctorDashboard';
 import DoctorOpenPool from './pages/DoctorOpenPool';
 import DoctorPendingReports from './pages/DoctorPendingReports';
@@ -32,6 +33,7 @@ function App() {
         {/* Diagnostic Center Routes wrapped in Layout */}
         <Route path="/center" element={<Layout role="center"><CenterUpload /></Layout>} />
         <Route path="/center/upload" element={<Layout role="center"><CenterUpload /></Layout>} />
+        <Route path="/center/drafts" element={<Layout role="center"><CenterDrafts /></Layout>} />
         <Route path="/center/cases" element={<Layout role="center"><CenterCases /></Layout>} />
 
         {/* Admin Routes wrapped in Layout */}

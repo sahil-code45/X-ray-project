@@ -312,9 +312,12 @@ export default function RegisterDoctor() {
                       MBBS Degree Certificate (Image / PDF){" "}
                       <span className="text-red-500">*</span>
                     </label>
+
+
                     <p className="text-xs text-gray-500 mb-2">
                       Upload your official MBBS degree or pass certificate.
                     </p>
+
                     <input
                       type="file"
                       name="mbbsDegreeFile"
@@ -329,6 +332,7 @@ export default function RegisterDoctor() {
                       </span>
                     )}
                   </div>
+
 
                   {/* PG Degree Certificate */}
                   <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
