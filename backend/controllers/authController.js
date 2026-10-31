@@ -26,14 +26,20 @@ exports.registerDoctor = async (req, res) => {
         const registrationFileUrl = toRelativeUrl(regFile);
         const degreeFileUrl = mbbsDegreeFileUrl;
 
-        const existingUser = await User.findOne({ where: { email } });
+        const normalizedEmail = (email || '').toLowerCase().trim();
+        const existingUser = await User.findOne({
+            where: sequelize.where(
+                sequelize.fn('lower', sequelize.col('email')),
+                normalizedEmail
+            )
+        });
         if (existingUser) {
             await t.rollback();
             return res.status(400).json({ message: 'Email already exists' });
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
-        const user = await User.create({ email, password: hashedPassword, role: 'doctor', status: 'pending' }, { transaction: t });
+        const user = await User.create({ email: normalizedEmail, password: hashedPassword, role: 'doctor', status: 'pending' }, { transaction: t });
         await DoctorProfile.create({ 
             userId: user.id, 
             name, 
@@ -67,11 +73,17 @@ exports.registerAdmin = async (req, res) => {
 exports.registerCenter = async (req, res) => {
     try {
         const { email, password } = req.body;
-        const existingUser = await User.findOne({ where: { email } });
+        const normalizedEmail = (email || '').toLowerCase().trim();
+        const existingUser = await User.findOne({
+            where: sequelize.where(
+                sequelize.fn('lower', sequelize.col('email')),
+                normalizedEmail
+            )
+        });
         if (existingUser) return res.status(400).json({ message: 'Email already exists' });
         
         const hashedPassword = await bcrypt.hash(password, 10);
-        await User.create({ email, password: hashedPassword, role: 'center', status: 'approved' });
+        await User.create({ email: normalizedEmail, password: hashedPassword, role: 'center', status: 'approved' });
         
         res.status(201).json({ message: 'Diagnostic Center registered successfully. You can now login.' });
     } catch (error) {
@@ -82,7 +94,13 @@ exports.registerCenter = async (req, res) => {
 exports.login = async (req, res) => {
     try {
         const { email, password } = req.body;
-        const user = await User.findOne({ where: { email } });
+        const normalizedEmail = (email || '').toLowerCase().trim();
+        const user = await User.findOne({
+            where: sequelize.where(
+                sequelize.fn('lower', sequelize.col('email')),
+                normalizedEmail
+            )
+        });
         if (!user || user.status !== 'approved' || !user.password) {
             return res.status(401).json({ message: 'Invalid credentials or account not approved' });
         }

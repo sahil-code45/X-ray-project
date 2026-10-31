@@ -89,7 +89,14 @@ function parseDicomBuffer(buffer) {
     const studyDate = dataSet.string('x00080020');
     const manufacturer = dataSet.string('x00080070');
     const scannerModel = dataSet.string('x00081090');
+    const institutionName = dataSet.string('x00080080');
     const sliceThickness = dataSet.string('x00180050');
+    const spacingBetweenSlices = dataSet.string('x00180088');
+    const pixelSpacing = dataSet.string('x00280030');
+    const kvp = dataSet.string('x00180060');
+    const tubeCurrent = dataSet.string('x00181151');
+    const repetitionTime = dataSet.string('x00180080');
+    const echoTime = dataSet.string('x00180081');
     const instanceNumber = dataSet.intString ? dataSet.intString('x00200013') : parseInt(dataSet.string('x00200013') || '0', 10);
     const rows = dataSet.uint16 ? dataSet.uint16('x00280010') : null;
     const columns = dataSet.uint16 ? dataSet.uint16('x00280011') : null;
@@ -101,6 +108,34 @@ function parseDicomBuffer(buffer) {
 
     const modality = formatModality(rawModality);
     const testName = studyDescription || seriesDescription || (modality ? `${modality} Scan` : '');
+
+    const tags = [
+      { tag: '(0010,0010)', name: 'Patient Name', vr: 'PN', value: formatPersonName(rawPatientName) || 'N/A' },
+      { tag: '(0010,0020)', name: 'Patient ID', vr: 'LO', value: rawPatientId || 'N/A' },
+      { tag: '(0010,1010)', name: 'Patient Age', vr: 'AS', value: rawPatientAge || 'N/A' },
+      { tag: '(0010,0040)', name: 'Patient Sex', vr: 'CS', value: rawPatientSex || 'N/A' },
+      { tag: '(0008,0060)', name: 'Modality', vr: 'CS', value: modality || 'N/A' },
+      { tag: '(0008,1030)', name: 'Study Description', vr: 'LO', value: studyDescription || 'N/A' },
+      { tag: '(0008,103E)', name: 'Series Description', vr: 'LO', value: seriesDescription || 'N/A' },
+      { tag: '(0008,0020)', name: 'Study Date', vr: 'DA', value: studyDate || 'N/A' },
+      { tag: '(0008,0070)', name: 'Manufacturer', vr: 'LO', value: manufacturer || 'N/A' },
+      { tag: '(0008,1090)', name: "Manufacturer's Model Name", vr: 'LO', value: scannerModel || 'N/A' },
+      { tag: '(0008,0080)', name: 'Institution Name', vr: 'LO', value: institutionName || 'N/A' },
+      { tag: '(0018,0050)', name: 'Slice Thickness', vr: 'DS', value: sliceThickness ? `${sliceThickness} mm` : 'N/A' },
+      { tag: '(0018,0088)', name: 'Spacing Between Slices', vr: 'DS', value: spacingBetweenSlices ? `${spacingBetweenSlices} mm` : 'N/A' },
+      { tag: '(0028,0030)', name: 'Pixel Spacing', vr: 'DS', value: pixelSpacing || 'N/A' },
+      { tag: '(0018,0060)', name: 'KVP', vr: 'DS', value: kvp || 'N/A' },
+      { tag: '(0018,1151)', name: 'X-Ray Tube Current', vr: 'IS', value: tubeCurrent ? `${tubeCurrent} mA` : 'N/A' },
+      { tag: '(0018,0080)', name: 'Repetition Time (TR)', vr: 'DS', value: repetitionTime ? `${repetitionTime} ms` : 'N/A' },
+      { tag: '(0018,0081)', name: 'Echo Time (TE)', vr: 'DS', value: echoTime ? `${echoTime} ms` : 'N/A' },
+      { tag: '(0028,0010)', name: 'Rows', vr: 'US', value: rows ? String(rows) : 'N/A' },
+      { tag: '(0028,0011)', name: 'Columns', vr: 'US', value: columns ? String(columns) : 'N/A' },
+      { tag: '(0028,1050)', name: 'Window Center', vr: 'DS', value: windowCenter || 'N/A' },
+      { tag: '(0028,1051)', name: 'Window Width', vr: 'DS', value: windowWidth || 'N/A' },
+      { tag: '(0020,000D)', name: 'Study Instance UID', vr: 'UI', value: studyInstanceUid || 'N/A' },
+      { tag: '(0020,000E)', name: 'Series Instance UID', vr: 'UI', value: seriesInstanceUid || 'N/A' },
+      { tag: '(0008,0018)', name: 'SOP Instance UID', vr: 'UI', value: sopInstanceUid || 'N/A' }
+    ];
 
     return {
       isValidDicom: true,
@@ -115,7 +150,14 @@ function parseDicomBuffer(buffer) {
       studyDate: formatDate(studyDate),
       manufacturer: manufacturer ? manufacturer.trim() : '',
       scannerModel: scannerModel ? scannerModel.trim() : '',
+      institutionName: institutionName ? institutionName.trim() : '',
       sliceThickness: sliceThickness ? sliceThickness.trim() : '',
+      spacingBetweenSlices: spacingBetweenSlices || '',
+      pixelSpacing: pixelSpacing || '',
+      kvp: kvp || '',
+      tubeCurrent: tubeCurrent || '',
+      repetitionTime: repetitionTime || '',
+      echoTime: echoTime || '',
       instanceNumber: isNaN(instanceNumber) ? 0 : instanceNumber,
       rows: rows || 0,
       columns: columns || 0,
@@ -123,7 +165,8 @@ function parseDicomBuffer(buffer) {
       windowWidth: windowWidth || '',
       studyInstanceUid: studyInstanceUid || '',
       seriesInstanceUid: seriesInstanceUid || '',
-      sopInstanceUid: sopInstanceUid || ''
+      sopInstanceUid: sopInstanceUid || '',
+      tags
     };
   } catch (err) {
     return {

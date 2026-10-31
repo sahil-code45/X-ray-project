@@ -44,6 +44,90 @@ exports.getDicomMetadata = async (req, res) => {
     }
 };
 
+exports.getOhifManifest = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const user = req.user;
+        const token = req.query.token || (req.headers.authorization ? req.headers.authorization.replace('Bearer ', '') : '');
+
+        const xrayCase = await XrayCase.findByPk(id);
+        if (!xrayCase) return res.status(404).json({ message: 'Case not found' });
+
+        if (user.role === 'center' && xrayCase.centerId && xrayCase.centerId !== user.id) {
+            return res.status(403).json({ message: 'Unauthorized for this case' });
+        }
+
+        const filePath = path.resolve(xrayCase.dicomFileUrl);
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({ message: 'DICOM file or folder not found on server' });
+        }
+
+        const inspection = inspectDicomPath(filePath);
+        const meta = inspection.metadata || {};
+
+        const host = req.get('host') || 'localhost:8000';
+        const protocol = req.protocol || 'http';
+        const baseUrl = `${protocol}://${host}`;
+
+        const studyUid = meta.studyInstanceUid || `2.25.${xrayCase.id}.${Date.now()}`;
+        const seriesUid = meta.seriesInstanceUid || `${studyUid}.1`;
+        const modality = xrayCase.modality || meta.modality || 'CT';
+        const patientName = xrayCase.patientName || meta.patientName || 'Anonymous';
+        const patientId = xrayCase.patientId || meta.patientId || String(xrayCase.id);
+
+        const instances = inspection.slices.map((sliceRelPath, idx) => {
+            const streamUrl = `${baseUrl}/api/cases/${xrayCase.id}/dicom-stream?slice=${encodeURIComponent(sliceRelPath)}&token=${token}`;
+            return {
+                metadata: {
+                    Columns: meta.columns || 512,
+                    Rows: meta.rows || 512,
+                    InstanceNumber: idx + 1,
+                    SOPClassUID: modality === 'MRI' ? '1.2.840.10008.5.1.4.1.1.4' : '1.2.840.10008.5.1.4.1.1.2',
+                    SOPInstanceUID: `${seriesUid}.${idx + 1}`,
+                    SeriesInstanceUID: seriesUid,
+                    StudyInstanceUID: studyUid,
+                    Modality: modality,
+                    SeriesNumber: 1
+                },
+                url: `dicomweb:${streamUrl}`
+            };
+        });
+
+        const seriesData = [
+            {
+                SeriesInstanceUID: seriesUid,
+                SeriesNumber: 1,
+                SeriesDescription: meta.seriesDescription || `${modality} Series`,
+                Modality: modality,
+                instances
+            }
+        ];
+
+        const manifest = {
+            studies: [
+                {
+                    StudyInstanceUID: studyUid,
+                    StudyDescription: xrayCase.testName || meta.testName || `${modality} Study`,
+                    StudyDate: meta.studyDate ? String(meta.studyDate).replace(/-/g, '') : new Date().toISOString().slice(0, 10).replace(/-/g, ''),
+                    StudyTime: '120000',
+                    PatientName: patientName,
+                    PatientID: patientId,
+                    PatientAge: xrayCase.patientAge || meta.patientAge || '',
+                    PatientSex: (xrayCase.patientGender || meta.patientGender || 'O').slice(0, 1).toUpperCase(),
+                    series: seriesData,
+                    seriesList: seriesData
+                }
+            ]
+        };
+
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Headers', '*');
+        return res.json(manifest);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
 exports.streamDicom = async (req, res) => {
     try {
         const { id } = req.params;

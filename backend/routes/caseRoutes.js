@@ -22,6 +22,7 @@ router.get('/:id', verifyRole('doctor', 'admin', 'center'), caseController.getCa
 router.post('/claim/:id', verifyRole('doctor'), caseController.claimCase);
 router.get('/:id/dicom-metadata', verifyRole('doctor', 'admin', 'center'), reportController.getDicomMetadata);
 router.get('/:id/dicom-stream', verifyRole('doctor', 'admin', 'center'), reportController.streamDicom);
+router.get('/:id/ohif-manifest', verifyRole('doctor', 'admin', 'center'), reportController.getOhifManifest);
 router.post('/:id/report', verifyRole('doctor'), reportController.submitReport);
 router.post('/:id/report-issue', verifyRole('doctor'), caseController.reportIssue);
 router.post('/:id/reupload', verifyRole('admin', 'center'), upload.single('dicomFile'), caseController.reuploadCaseFile);

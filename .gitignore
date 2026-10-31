@@ -48,4 +48,3 @@ fix_urls.js
 backend/tests/temp*/
 backend/dicom-bridge/config.json
 coverage/
-
